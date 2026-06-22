@@ -1,24 +1,29 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { GLOBAL_CSS } from "./constants/styles";
-import { useApiHealth, usePipeline } from "./hooks";
+import { useApiHealth, usePipeline, useRunHistory } from "./hooks";
 import { SIG } from "./constants";
 
 import { Sidebar }  from "./components/layout/Sidebar";
 import { Topbar }   from "./components/layout/Topbar";
 
-import { IngestSection }       from "./components/sections/IngestSection";
-import { PipelineSection }     from "./components/sections/PipelineSection";
-import { BatchResultsSection } from "./components/sections/BatchResultsSection";
-import { AtlasSection }        from "./components/sections/AtlasSection";
-import { GapAnalysisSection }  from "./components/sections/GapAnalysisSection";
-import { ExportSection }       from "./components/sections/ExportSection";
+import { IngestSection }          from "./components/sections/IngestSection";
+import { PipelineSection }        from "./components/sections/PipelineSection";
+import { BatchResultsSection }    from "./components/sections/BatchResultsSection";
+import { AtlasSection }           from "./components/sections/AtlasSection";
+import { GapAnalysisSection }     from "./components/sections/GapAnalysisSection";
+import { ExportSection }          from "./components/sections/ExportSection";
+import { InterpretationSection }  from "./components/sections/InterpretationSection";
+import { ProvenanceSection }      from "./components/sections/ProvenanceSection";
+import { CoverageSection }        from "./components/sections/CoverageSection";
+import { HistorySection }         from "./components/sections/HistorySection";
+import { NullTestSection }        from "./components/sections/NullTestSection";
 
-import type { NavSection, PipelineMode } from "./types";
+import type { NavSection, PipelineMode, AnalysisPair } from "./types";
 
-// ─── CSS Injection ─────────────────────────────────────────────────────────────
+// ─── CSS injection ────────────────────────────────────────────────────────────
 
 function useGlobalStyles() {
-    useEffect(() => {
+   useEffect(() => {
         const el = document.createElement("style");
 
         el.textContent = GLOBAL_CSS;
@@ -31,17 +36,34 @@ function useGlobalStyles() {
     }, []);
 }
 
-// ─── App ──────────────────────────────────────────────────────────────────────
+// ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
   useGlobalStyles();
 
   const [page, setPage] = useState<NavSection>("ingest");
-  const apiOnline       = useApiHealth();
-  const { jobId, mode, pairs, resultsReady, startRun, handleComplete } = usePipeline();
+  const apiOnline = useApiHealth();
 
-  const significantPairs = pairs.filter(p => p.pval < SIG.STANDARD).length;
+  const {
+    jobId, mode, pairs: pipelinePairs, resultsReady,
+    lastLog, startRun, handleComplete,
+  } = usePipeline();
 
+  const {
+    history, activeRunId, addRun, restoreRun, deleteRun, renameRun, clearHistory,
+  } = useRunHistory();
+
+  // "Active" pairs — either the latest pipeline run or a restored history record
+  const [activePairs, setActivePairs] = useState<AnalysisPair[]>([]);
+
+  // Keep activePairs in sync with the latest pipeline run
+  useEffect(() => {
+    if (pipelinePairs.length > 0) setActivePairs(pipelinePairs);
+  }, [pipelinePairs]);
+
+  const significantPairs = activePairs.filter(p => p.pval < SIG.STANDARD).length;
+
+  // ── Pipeline start ──────────────────────────────────────────────────────────
   const handleStartRun = useCallback(
     async (m: PipelineMode) => {
       setPage("pipeline");
@@ -50,39 +72,63 @@ export default function App() {
     [startRun]
   );
 
+  // ── Pipeline complete: save to history, activate results ────────────────────
   const handlePipelineComplete = useCallback(async () => {
-    await handleComplete();
-    setTimeout(() => setPage("batch"), 800);
-  }, [handleComplete]);
+    const result = await handleComplete();
+    if (result && jobId) {
+      const record = addRun(jobId, mode, result.pairs, result.log);
+      setActivePairs(result.pairs);
+      setTimeout(() => setPage("batch"), 800);
+    }
+  }, [handleComplete, jobId, mode, addRun]);
 
-  // ── Page renderer ────────────────────────────────────────────────────────────
+  // ── History restore ─────────────────────────────────────────────────────────
+  const handleRestore = useCallback((pairs: AnalysisPair[]) => {
+    setActivePairs(pairs);
+    setPage("batch");
+  }, []);
+
+  // ── Page renderer ───────────────────────────────────────────────────────────
   const renderPage = () => {
     switch (page) {
       case "ingest":
-        return (
-          <IngestSection onStartRun={handleStartRun} apiOnline={apiOnline} />
-        );
+        return <IngestSection onStartRun={handleStartRun} apiOnline={apiOnline} />;
       case "pipeline":
-        return (
-          <PipelineSection
-            mode={mode}
-            jobId={jobId}
-            onComplete={handlePipelineComplete}
-          />
-        );
+        return <PipelineSection mode={mode} jobId={jobId} onComplete={handlePipelineComplete} />;
       case "batch":
       case "pairs":
-        return <BatchResultsSection pairs={pairs} />;
+        return <BatchResultsSection pairs={activePairs} />;
+      case "interpretation":
+        return <InterpretationSection pairs={activePairs} />;
+      case "provenance":
+        return <ProvenanceSection pairs={activePairs} />;
+      case "coverage":
+        return <CoverageSection pairs={activePairs} />;
       case "atlas":
-        return <AtlasSection pairs={pairs} />;
+        return <AtlasSection pairs={activePairs} />;
       case "gaps":
-        return <GapAnalysisSection pairs={pairs} />;
+        return <GapAnalysisSection pairs={activePairs} />;
+      case "history":
+        return (
+          <HistorySection
+            history={history}
+            activeRunId={activeRunId}
+            onRestore={handleRestore}
+            onDelete={deleteRun}
+            onRename={renameRun}
+            onClear={clearHistory}
+          />
+        );
+      case "nulltest":
+        return <NullTestSection pairs={activePairs} />;
       case "export":
-        return <ExportSection pairs={pairs} />;
+        return <ExportSection pairs={activePairs} />;
       default:
         return null;
     }
   };
+
+  const isResultsReady = resultsReady || activePairs.length > 0;
 
   return (
     <div className="app-shell">
@@ -90,17 +136,17 @@ export default function App() {
         activePage={page}
         onNavigate={setPage}
         apiOnline={apiOnline}
-        resultsReady={resultsReady}
-        totalPairs={pairs.length}
+        resultsReady={isResultsReady}
+        totalPairs={activePairs.length}
         significantPairs={significantPairs}
+        historyCount={history.length}
       />
-
       <div className="main-area">
         <Topbar
           activePage={page}
           apiOnline={apiOnline}
-          resultsReady={resultsReady}
-          totalPairs={pairs.length}
+          resultsReady={isResultsReady}
+          totalPairs={activePairs.length}
           significantPairs={significantPairs}
         />
         <div className="workspace">{renderPage()}</div>

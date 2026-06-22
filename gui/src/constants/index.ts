@@ -75,20 +75,25 @@ export interface NavItem {
   id: NavSection;
   label: string;
   icon: string;
-  group: "Data" | "Analysis" | "Output";
+  group: "Data" | "Analysis" | "Validation" | "Output";
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { id: "ingest",   label: "Ingest",           icon: "upload",  group: "Data"     },
-  { id: "pipeline", label: "Pipeline Runner",  icon: "play",    group: "Data"     },
-  { id: "batch",    label: "Batch Results",    icon: "table",   group: "Analysis" },
-  { id: "pairs",    label: "Per-Pair Plots",   icon: "chart",   group: "Analysis" },
-  { id: "atlas",    label: "Constraint Atlas", icon: "layers",  group: "Analysis" },
-  { id: "gaps",     label: "Gap Analysis",     icon: "scope",   group: "Analysis" },
-  { id: "export",   label: "Export & Report",  icon: "report",  group: "Output"   },
+  { id: "ingest",         label: "Ingest",                icon: "upload",   group: "Data"       },
+  { id: "pipeline",       label: "Pipeline Runner",       icon: "play",     group: "Data"       },
+  { id: "history",        label: "Run History",           icon: "layers",   group: "Data"       },
+  { id: "batch",          label: "Batch Results",         icon: "table",    group: "Analysis"   },
+  { id: "pairs",          label: "Per-Pair Plots",        icon: "chart",    group: "Analysis"   },
+  { id: "interpretation", label: "Interpretation",        icon: "validate", group: "Analysis"   },
+  { id: "provenance",     label: "Dataset Provenance",    icon: "report",   group: "Analysis"   },
+  { id: "coverage",       label: "λ Coverage Viewer",     icon: "scope",    group: "Analysis"   },
+  { id: "atlas",          label: "Constraint Atlas",      icon: "layers",   group: "Analysis"   },
+  { id: "gaps",           label: "Gap Analysis",          icon: "grid",     group: "Analysis"   },
+  { id: "nulltest",       label: "Null Test / Injection", icon: "atom",     group: "Validation" },
+  { id: "export",         label: "Export & Report",       icon: "dl",       group: "Output"     },
 ];
 
-export const NAV_GROUPS = ["Data", "Analysis", "Output"] as const;
+export const NAV_GROUPS = ["Data", "Analysis", "Validation", "Output"] as const;
 
 // ─── Significance Thresholds ───────────────────────────────────────────────────
 

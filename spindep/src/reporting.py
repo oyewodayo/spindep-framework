@@ -313,6 +313,18 @@ def build_pair_section(row, plot_path, styles, pair_index, total_pairs):
     story.append(met_tbl)
     story.append(Spacer(1, 0.4*cm))
 
+
+    # After the statistics table:
+    if row.get("potential") in ("V3", "V3a") and row.get("coupling") == "gAgA":
+        story.append(Paragraph(
+            "⚠ NOTE: V₃ under gAgA coupling diverges as λ² at small boson mass "
+            "(Cong et al. 2025, Eq. 48–52). The f₃ coefficient in raw datasets "
+            "must be converted to physical gAgA before comparing with other potentials. "
+            "Values shown are raw digitised constraint curves — apply Table VI correction "
+            "before citing.",
+            styles["warn"]
+        ))
+
     # Plot
     if plot_path and Path(plot_path).exists():
         img = Image(str(plot_path), width=16*cm, height=12.8*cm)

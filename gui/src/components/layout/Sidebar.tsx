@@ -10,6 +10,7 @@ interface SidebarProps {
   resultsReady: boolean;
   totalPairs: number;
   significantPairs: number;
+  historyCount: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -19,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   resultsReady,
   totalPairs,
   significantPairs,
+  historyCount,
 }) => (
   <div className="sidebar">
     {/* Wordmark */}
@@ -78,7 +80,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="nav-group">{group}</div>
           {NAV_ITEMS.filter(n => n.group === group).map(item => {
             const badge =
-              item.id === "batch" && resultsReady ? totalPairs : null;
+              item.id === "batch"   && resultsReady  ? totalPairs
+              : item.id === "history" && historyCount > 0 ? historyCount
+              : null;
             return (
               <button
                 key={item.id}

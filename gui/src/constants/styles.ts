@@ -117,4 +117,25 @@ input, select, textarea { font-family: ${T.sans}; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .spin-anim { animation: spin 2s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Interpretation section ── */
+.narrative-block { padding: 16px 20px; line-height: 1.9; font-size: 13px; }
+.narrative-block p { margin-bottom: 12px; }
+.narrative-block p:last-child { margin-bottom: 0; }
+.flag-row { transition: background .1s; }
+.flag-row:hover { background: ${T.bg2}; }
+
+/* ── Provenance section ── */
+.dataset-drawer td { padding: 0 !important; border-bottom: none !important; }
+.lambda-bar-track { position: relative; height: 8px; background: ${T.border}30; border-radius: 4px; }
+.lambda-bar-fill  { position: absolute; height: 100%; background: ${T.blue}; border-radius: 4px; min-width: 3px; }
+
+/* ── Coverage section ── */
+.gantt-track  { position: relative; flex: 1; height: 24px; background: ${T.border}30; border-radius: 3px; }
+.gantt-bar    { position: absolute; height: 100%; border-radius: 3px; opacity: .85; }
+.overlap-band { position: absolute; top: 0; bottom: 0; background: ${T.teal}18; border: 1px solid ${T.teal}40; border-radius: 2px; pointer-events: none; }
+
+/* ── Recharts overrides ── */
+.recharts-default-legend { font-size: 10px !important; }
+.recharts-legend-item-text { color: ${T.textDim} !important; font-size: 10px !important; }
 `;
