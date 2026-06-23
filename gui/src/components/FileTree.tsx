@@ -201,19 +201,10 @@ function TreeNode({
         )}
 
         {/* ⋯ button */}
-        <button
+         <button
           ref={btnRef}
           className="btn btn-ghost btn-icon"
-          style={{
-            opacity:    0,
-            fontSize:   13,
-            padding:    "0 6px",
-            marginLeft: 4,
-            flexShrink: 0,
-            // Show on row hover via parent hover — use CSS class trick
-          }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-          onMouseLeave={e => { if (!menuOpen) e.currentTarget.style.opacity = "0"; }}
+          style={{ opacity: 0.5, fontSize: 13, padding: "0 6px", marginLeft: 4, flexShrink: 0 }}
           onClick={openMenu}
           title="Options"
         >
