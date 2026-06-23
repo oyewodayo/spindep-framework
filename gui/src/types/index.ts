@@ -211,6 +211,7 @@ export interface NullTestPoint {
 
 /** Full result of one null test run */
 export interface NullTestResult {
+  injectedAalpha: number;
   config:          NullTestConfig;
   jobId:           string;
   status:          NullTestStatus;

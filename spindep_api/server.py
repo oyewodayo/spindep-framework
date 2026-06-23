@@ -1,9 +1,15 @@
 # server.py  — FastAPI bridge between GUI and spindep pipeline
 #!/usr/bin/env python3
+import re
+
 from fastapi import FastAPI, BackgroundTasks, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn, uuid, json, sys, logging
 from pathlib import Path
+import shutil
+from fastapi import UploadFile, File
+from typing import List
+
 
 logger = logging.getLogger("spindep.server")
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +32,7 @@ if str(_SPINDEP_ROOT) not in sys.path:
     sys.path.insert(0, str(_SPINDEP_ROOT))
 
 from src.null_test import run_null_test
-
+from src.parser import parse_dataset, FERMION_MAP, ANTIMATTER_SECTORS
 
 # ─── Dataset loader ───────────────────────────────────────────────────────────
 
@@ -233,7 +239,224 @@ async def api_null_test(request: Request):
 def api_null_test_result(job_id: str):
     raise HTTPException(status_code=404, detail="async polling not yet implemented")
 
+def _infer_from_filename(filename: str) -> dict:
+    """
+    Parse coupling, interaction_class, and sector directly from the filename.
+    e.g. V2_Fadeev2022_ee_gAgA.csv → coupling=gAgA, class=lepton-lepton, sector=ee
+    
+    Strategy: the coupling token is the LAST underscore-separated part (before .csv).
+    The sector token is identified by cross-referencing KNOWN_SECTORS / SECTOR_ALIASES.
+    """
+    from src.parser import (
+        extract_sector, normalize_sector, KNOWN_SECTORS,
+        SECTOR_ALIASES, FERMION_MAP
+    )
 
+    stem   = Path(filename).stem                    # V2_Fadeev2022_ee_gAgA
+    parts  = stem.split("_")                        # ['V2', 'Fadeev2022', 'ee', 'gAgA']
+
+    # ── Coupling: last token that looks like a coupling name ──────────────────
+    # Coupling tokens are typically camelCase with repeated letters: gAgA, gsgs, gVgV
+    coupling = "unknown"
+    for p in reversed(parts):
+        if re.match(r"^g[A-Za-z]{1,4}$", p) or re.match(r"^g[A-Z][a-z][A-Z]$", p):
+            coupling = p
+            break
+    # Fallback: last part that isn't a year, potential, or sector
+    if coupling == "unknown" and parts:
+        coupling = parts[-1]
+
+    # ── Sector: scan all parts against known sectors / aliases ────────────────
+    sector = "unknown"
+    for p in parts:
+        normalised = normalize_sector(p)
+        if normalised in KNOWN_SECTORS or normalised in FERMION_MAP:
+            sector = normalised
+            break
+
+    # ── Interaction class from sector ─────────────────────────────────────────
+    interaction_class = _infer_interaction_class(sector)
+
+    return {
+        "coupling":          coupling,
+        "sector":            sector,
+        "interaction_class": interaction_class,
+    }
+
+
+def _infer_interaction_class(sector: str) -> str:
+    lepton_lepton   = {"ee","eebar","emu","emubar","mumu","mumubar"}
+    lepton_nucleon  = {"ep","epbar","en","enbar","np","npbar","eN","eNbar","muN"}
+    nucleon_nucleon = {"nn","nnbar","pp","ppbar"}
+    if sector in lepton_lepton:   return "lepton-lepton"
+    if sector in lepton_nucleon:  return "lepton-nucleon"
+    if sector in nucleon_nucleon: return "nucleon-nucleon"
+    return "unknown"
+
+
+@app.post("/api/upload")
+async def upload_datasets(files: List[UploadFile] = File(...)):
+    import pandas as pd, io
+    DATA_ROOT.mkdir(parents=True, exist_ok=True)
+    saved, warnings, suggestions = [], [], []
+
+    for f in files:
+        if not f.filename or not f.filename.endswith(".csv"):
+            warnings.append(f"{f.filename}: skipped (not a .csv)")
+            continue
+
+        content = await f.read()
+
+        # ── Infer structure directly from filename (not folder path) ──────────
+        inferred = _infer_from_filename(f.filename)
+        coupling          = inferred["coupling"]
+        interaction_class = inferred["interaction_class"]
+        sector            = inferred["sector"]
+
+        suggested_dir  = DATA_ROOT / coupling / interaction_class
+        suggested_path = suggested_dir / f.filename
+
+        # ── Save flat into DATA_ROOT root for now ─────────────────────────────
+        dest = DATA_ROOT / f.filename
+        dest.write_bytes(content)
+
+        # ── Column check ──────────────────────────────────────────────────────
+        try:
+            df       = pd.read_csv(io.BytesIO(content), nrows=2)
+            required = {"lambda_m", "coupling_abs"}
+            missing  = required - set(df.columns)
+            if missing:
+                warnings.append(
+                    f"{f.filename}: saved but missing columns {missing} "
+                    f"— found: {list(df.columns)}"
+                )
+        except Exception as e:
+            warnings.append(f"{f.filename}: saved but could not validate ({e})")
+
+        saved.append(f.filename)
+
+        # Only suggest if we inferred something useful
+        if coupling != "unknown":
+            suggestions.append({
+                "filename":          f.filename,
+                "coupling":          coupling,
+                "interaction_class": interaction_class,
+                "sector":            sector,
+                "suggested_path":    f"normalized/{coupling}/{interaction_class}/{f.filename}",
+                "suggested_dir":     str(suggested_dir),
+            })
+
+        logger.info("Uploaded: %s → inferred coupling=%s class=%s sector=%s",
+                    f.filename, coupling, interaction_class, sector)
+
+    _PAIR_DATASET_CACHE.clear()
+    return {"saved": saved, "warnings": warnings, "suggestions": suggestions}
+
+
+@app.post("/api/organize")
+async def organize_dataset(request: Request):
+    """
+    Move an uploaded file from its current location (anywhere under DATA_ROOT)
+    into DATA_ROOT/{coupling}/{interaction_class}/{filename}.
+    Body: { filename, coupling, interaction_class }
+    """
+    body              = await request.json()
+    filename          = body["filename"]
+    coupling          = body["coupling"]
+    interaction_class = body["interaction_class"]
+
+    # Find the file — it may be flat in DATA_ROOT or already partially moved
+    src = DATA_ROOT / filename
+    if not src.exists():
+        # Search recursively in case it's somewhere else under DATA_ROOT
+        matches = list(DATA_ROOT.rglob(filename))
+        if not matches:
+            raise HTTPException(status_code=404, detail=f"{filename} not found under DATA_ROOT")
+        src = matches[0]
+
+    dest_dir = DATA_ROOT / coupling / interaction_class
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / filename
+
+    if src == dest:
+        return {"moved_to": str(dest.relative_to(DATA_ROOT.parent)), "already_correct": True}
+
+    shutil.move(str(src), str(dest))
+    _PAIR_DATASET_CACHE.clear()
+    logger.info("Organized: %s → %s/%s/%s", filename, coupling, interaction_class, filename)
+    return {
+        "moved_to": f"normalized/{coupling}/{interaction_class}/{filename}",
+        "coupling": coupling,
+        "interaction_class": interaction_class,
+    }
+
+
+@app.delete("/api/datasets/{filename:path}")
+def delete_dataset(filename: str):
+    """
+    Delete a file OR folder by relative path under DATA_ROOT.
+    filename can include subdirs: gAgA/lepton-lepton/V2_Fadeev2022_ee_gAgA.csv
+    or just a folder: gAgA/lepton-lepton/jfoEF
+    """
+    target = DATA_ROOT / filename
+    if not target.exists():
+        raise HTTPException(status_code=404, detail=f"{filename} not found")
+
+    if target.is_dir():
+        shutil.rmtree(target)          # ← handles folders recursively
+        logger.info("Deleted folder: %s", target)
+    else:
+        target.unlink()                # ← files as before
+        logger.info("Deleted file: %s", target)
+
+    _PAIR_DATASET_CACHE.clear()
+    return {"deleted": filename}
+
+
+@app.post("/api/datasets/folder")
+async def create_folder(request: Request):
+    """
+    Create a subfolder under DATA_ROOT.
+    Body: { path }  e.g. { "path": "gAgA/lepton-lepton" }
+    """
+    body        = await request.json()
+    folder_path = body.get("path", "").strip("/")
+    if not folder_path:
+        raise HTTPException(status_code=400, detail="path is required")
+    target = DATA_ROOT / folder_path
+    target.mkdir(parents=True, exist_ok=True)
+    logger.info("Created folder: %s", target)
+    return {"created": folder_path}
+
+
+@app.put("/api/datasets/rename")
+async def rename_item(request: Request):
+    """
+    Rename/move a file or folder under DATA_ROOT.
+    Body: { old_path, new_path }
+    """
+    body     = await request.json()
+    old_path = DATA_ROOT / body["old_path"].strip("/")
+    new_path = DATA_ROOT / body["new_path"].strip("/")
+    if not old_path.exists():
+        raise HTTPException(status_code=404, detail=f"{body['old_path']} not found")
+    new_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(old_path), str(new_path))
+    _PAIR_DATASET_CACHE.clear()
+    logger.info("Renamed: %s → %s", old_path, new_path)
+    return {"renamed_to": body["new_path"]}
+
+@app.get("/api/datasets/folders")
+def list_folders():
+    """Return all subdirectory paths under DATA_ROOT for the move picker."""
+    if not DATA_ROOT.exists():
+        return {"folders": []}
+    folders = []
+    for p in sorted(DATA_ROOT.rglob("*")):
+        if p.is_dir():
+            folders.append(str(p.relative_to(DATA_ROOT)))
+    return {"folders": folders}
+  
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

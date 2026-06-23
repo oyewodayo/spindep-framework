@@ -80,6 +80,8 @@ class NullTestResult(TypedDict):
 def _sigma_from_pval(pval: float) -> float:
     """Approximate one-sided Gaussian sigma from a p-value."""
     from scipy.special import erfinv
+    
+    # formular 
     pval = float(np.clip(pval, 1e-15, 1.0 - 1e-15))
     return float(np.sqrt(2) * erfinv(1 - pval))
 

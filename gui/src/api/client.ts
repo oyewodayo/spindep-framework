@@ -42,6 +42,9 @@ function normalisePoint(raw: RawDataPoint): DataPoint {
   };
 }
 
+
+
+
 // ─── Field normalisation: AnalysisPair ────────────────────────────────────────
 //
 // The Python server serialises in snake_case. We normalise here — one place,
@@ -148,7 +151,8 @@ function normaliseNullTestPoint(raw: any): NullTestPoint {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+
 function normaliseNullTestResult(config: NullTestConfig, raw: any): NullTestResult {
   const points: NullTestPoint[] = (raw.points ?? []).map(normaliseNullTestPoint);
   const meanInj = raw.mean_injected  ?? raw.meanInjected  ?? config.injectedAalpha;
@@ -159,6 +163,7 @@ function normaliseNullTestResult(config: NullTestConfig, raw: any): NullTestResu
 
   return {
     config,
+    injectedAalpha:   config.injectedAalpha,   // ← add this line
     jobId:            raw.job_id         ?? raw.jobId         ?? "",
     status:           (raw.status as NullTestStatus)          ?? "done",
     log:              raw.log            ?? [],
@@ -175,7 +180,6 @@ function normaliseNullTestResult(config: NullTestConfig, raw: any): NullTestResu
       : Math.abs(meanRec - meanInj) < 0.05,
   };
 }
-
 // ─── Config hash ──────────────────────────────────────────────────────────────
 //
 // Deterministic fingerprint of a run: mode + sorted pair IDs.
@@ -189,6 +193,16 @@ export function buildConfigHash(mode: PipelineMode, pairs: AnalysisPair[]): stri
     h = h >>> 0;
   }
   return h.toString(16).padStart(8, "0");
+}
+
+// Returned by uploadDatasets when filename encodes folder info
+export interface UploadSuggestion {
+  filename:          string;
+  coupling:          string;
+  interaction_class: string;
+  sector:            string;
+  suggested_path:    string;
+  suggested_dir:     string;
 }
 
 // ─── Public API client ────────────────────────────────────────────────────────
@@ -216,6 +230,33 @@ export const apiClient = {
     const raw = await request<any>(`/api/results/${jobId}`);
     return normaliseResults(raw);
   },
+
+  async uploadDatasets(
+    files: File[]
+  ): Promise<{ saved: string[]; warnings: string[]; suggestions: UploadSuggestion[] }> {
+    const form = new FormData();
+    files.forEach(f => form.append("files", f));
+    const res = await fetch(`${API_BASE_URL}/api/upload`, { method: "POST", body: form });
+    if (!res.ok) throw new Error(`Upload failed ${res.status}: ${res.statusText}`);
+    return res.json();
+  },
+
+  async organizeDataset(
+    filename: string,
+    coupling: string,
+    interaction_class: string
+  ): Promise<{ moved_to: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/organize`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename, coupling, interaction_class }),
+    });
+    if (!res.ok) throw new Error(`Organize failed ${res.status}: ${res.statusText}`);
+    return res.json();
+  },
+
+
+  
 
   // ── Status / tree ────────────────────────────────────────────────────────────
 
@@ -287,4 +328,70 @@ export const apiClient = {
     const raw = await request<any>(`/api/null_test/${jobId}`);
     return normaliseNullTestResult(cfg, raw);
   },
+
+
+  // ── Dataset upload ──────────────────────────────────────────────────────────
+
+
+
+  // ── Folder management ──────────────────────────────────────────────────────
+
+  async createFolder(path: string): Promise<{ created: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/datasets/folder`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ path }),
+    });
+    if (!res.ok) throw new Error(`Create folder failed: ${res.statusText}`);
+    return res.json();
+  },
+
+  async renameItem(oldPath: string, newPath: string): Promise<{ renamed_to: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/datasets/rename`, {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ old_path: oldPath, new_path: newPath }),
+    });
+    if (!res.ok) throw new Error(`Rename failed: ${res.statusText}`);
+    return res.json();
+  },
+
+
+  /**
+   * Delete a single CSV from DATA_ROOT by filename.
+   * DELETE /api/datasets/{filename}
+   */
+  async deleteDataset(relativePath: string): Promise<{ deleted: string }> {
+    const res = await fetch(
+        `${API_BASE_URL}/api/datasets/${encodeURIComponent(relativePath)}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) throw new Error(`Delete failed: ${res.statusText}`);
+      return res.json();
+    },
+
+    async listFolders(): Promise<string[]> {
+    const res = await fetch(`${API_BASE_URL}/api/datasets/folders`);
+    if (!res.ok) throw new Error(`List folders failed: ${res.statusText}`);
+    const data = await res.json();
+    return data.folders ?? [];
+  },
+
+  async moveFile(
+    filename: string,
+    fromPath: string,         // relative path of the file e.g. gAgA/lepton-lepton/V2_Fadeev2022_ee_gAgA.csv
+    toFolder: string          // destination folder e.g. gAgA/Nucleon-Nucleon
+  ): Promise<{ moved_to: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/datasets/rename`, {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        old_path: fromPath,
+        new_path: `${toFolder}/${filename}`,
+      }),
+    });
+    if (!res.ok) throw new Error(`Move failed: ${res.statusText}`);
+    return res.json();
+  },
+  
 };

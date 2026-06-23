@@ -1,11 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { T } from "../../constants";
 import { apiClient } from "../../api/client";
 import { makeFallbackTree } from "../../utils";
 import { ApiBanner, PanelHeader } from "../ui";
-import { FileTree } from "../ui/FileTree";
 import { Icon } from "../ui/Icon";
+import { UploadPanel } from "./UploadPanel";                          // ← add
 import type { FileTreeNode, PipelineMode } from "../../types";
+import { FileTree } from "../FileTree";
 
 interface IngestSectionProps {
   onStartRun: (mode: PipelineMode) => Promise<void>;
@@ -16,7 +17,7 @@ export const IngestSection: React.FC<IngestSectionProps> = ({
   onStartRun,
   apiOnline,
 }) => {
-  const [tree, setTree]               = useState<FileTreeNode | null>(null);
+  const [tree, setTree]                 = useState<FileTreeNode | null>(null);
   const [selectedFile, setSelectedFile] = useState<FileTreeNode | null>(null);
 
   const loadPreview = async () => {
@@ -27,6 +28,23 @@ export const IngestSection: React.FC<IngestSectionProps> = ({
       setTree(makeFallbackTree());
     }
   };
+
+  // Refresh tree after a successful upload                           // ← add
+  const handleUploadSuccess = useCallback(async () => {
+    try {
+      const data = await apiClient.getTree();
+      setTree(data);
+    } catch {
+      setTree(makeFallbackTree());
+    }
+  }, []);
+
+  // Detect empty tree so we can nudge the researcher to upload       // ← add
+  const treeIsEmpty =
+    tree !== null &&
+    (tree.children ?? []).every(
+      (c) => !c.children?.length
+    );
 
   return (
     <div className="fade-in">
@@ -55,14 +73,18 @@ export const IngestSection: React.FC<IngestSectionProps> = ({
           >
             {tree ? (
               <>
-                <div style={{ color: T.teal, marginBottom: 10 }}>
-                  <Icon name="check" size={36} />
+                <div style={{ color: treeIsEmpty ? T.amber : T.teal, marginBottom: 10 }}>
+                  <Icon name={treeIsEmpty ? "warning" : "check"} size={36} />
                 </div>
                 <div style={{ fontWeight: 600, color: T.textHi, marginBottom: 4 }}>
-                  Dataset structure loaded
+                  {treeIsEmpty
+                    ? "No datasets found"
+                    : "Dataset structure loaded"}
                 </div>
                 <div style={{ color: T.textDim, fontSize: 12 }}>
-                  Reading from server: datasets/normalized/
+                  {treeIsEmpty
+                    ? "Upload CSV files using the panel on the right"
+                    : "Reading from server: datasets/normalized/"}
                 </div>
               </>
             ) : (
@@ -108,29 +130,56 @@ export const IngestSection: React.FC<IngestSectionProps> = ({
           )}
         </div>
 
-        {/* File tree browser */}
-        <div className="panel" style={{ maxHeight: 340, overflowY: "auto" }}>
-          <PanelHeader
-            title="Dataset Tree"
-            icon="folder"
-            sub={tree ? "datasets/normalized/" : "Click preview to browse"}
-          />
-          <div style={{ padding: "8px 6px" }}>
-            {tree ? (
-              <FileTree
-                node={tree}
-                onSelect={setSelectedFile}
-                selected={selectedFile?.name}
-              />
-            ) : (
-              <div
-                style={{ padding: 24, textAlign: "center", color: T.muted, fontSize: 12 }}
-              >
-                Click the panel on the left to preview
-              </div>
-            )}
+        {/* Right column: File tree + Upload panel */}
+       {/* Right column: File tree + Upload panel */}
+<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+  
+  {/* File tree browser — fixed height, scrolls internally */}
+  <div className="panel" style={{
+    height:     360,          // fixed — never grows
+    display:    "flex",
+    flexDirection: "column",
+    overflow:   "hidden",     // clip the panel itself
+  }}>
+    <PanelHeader
+      title="Dataset Tree"
+      icon="folder"
+      sub={tree ? "datasets/normalized/" : "Click preview to browse"}
+    />
+    <div style={{
+      flex:       1,          // takes remaining height inside the panel
+      overflowY:  "auto",     // scrolls here, not the panel
+      overflowX:  "visible",  // let fixed-position menus escape
+      padding:    "8px 6px",
+    }}>
+      {tree ? (
+        treeIsEmpty ? (
+          <div style={{ padding: 24, textAlign: "center", color: T.amber, fontSize: 12 }}>
+            datasets/normalized/ is empty — upload files below
           </div>
+        ) : (
+          <FileTree
+            node={tree}
+            onSelect={setSelectedFile}
+            selected={selectedFile?.name}
+            onRefresh={handleUploadSuccess}
+          />
+        )
+      ) : (
+        <div style={{ padding: 24, textAlign: "center", color: T.muted, fontSize: 12 }}>
+          Click the panel on the left to preview
         </div>
+      )}
+    </div>
+  </div>
+
+  {/* Upload panel — always below, never covered */}
+  <UploadPanel
+    onSuccess={handleUploadSuccess}
+    prominent={treeIsEmpty}
+  />
+
+</div>
       </div>
 
       {/* Run buttons */}
