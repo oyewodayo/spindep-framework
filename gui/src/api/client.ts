@@ -24,6 +24,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ─── File downloads ───────────────────────────────────────────────────────────
+
+function _saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function _filenameFromResponse(res: Response, fallback: string): string {
+  const match = res.headers.get("Content-Disposition")?.match(/filename="?([^"]+)"?/);
+  return match?.[1] ?? fallback;
+}
+
+async function _downloadGet(path: string, fallbackName: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}${path}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? `Export failed (${res.status})`);
+  }
+  _saveBlob(await res.blob(), _filenameFromResponse(res, fallbackName));
+}
+
 // ─── Field normalisation: DataPoint ──────────────────────────────────────────
 
 type RawDataPoint = {
@@ -299,13 +326,15 @@ export const apiClient = {
   // ── Null test ────────────────────────────────────────────────────────────────
 
   /**
-   * Submit a null-injection test job.
-   * POST /api/null_test
+   * Run a null-injection test.
+   * POST /api/null_test runs synchronously and returns the full result in
+   * one response — there is no background job/poll step for this endpoint.
    * Body: { pair_id, injected_aalpha, injection_mode, seed, label }
-   * Returns { job_id }
+   * Returns NullTestResult (normalised from snake_case server response).
    */
-  async runNullTest(cfg: NullTestConfig): Promise<{ job_id: string }> {
-    return request("/api/null_test", {
+  async runNullTest(cfg: NullTestConfig): Promise<NullTestResult> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = await request<any>("/api/null_test", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -316,16 +345,6 @@ export const apiClient = {
         label:           cfg.label,
       }),
     });
-  },
-
-  /**
-   * Fetch a completed null test result.
-   * GET /api/null_test/{jobId}
-   * Returns NullTestResult (normalised from snake_case server response).
-   */
-  async getNullTestResult(cfg: NullTestConfig, jobId: string): Promise<NullTestResult> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = await request<any>(`/api/null_test/${jobId}`);
     return normaliseNullTestResult(cfg, raw);
   },
 
@@ -393,5 +412,26 @@ export const apiClient = {
     if (!res.ok) throw new Error(`Move failed: ${res.statusText}`);
     return res.json();
   },
-  
+
+  // ── Export ──────────────────────────────────────────────────────────────────
+
+  downloadReport():         Promise<void> { return _downloadGet("/api/export/report", "asymmetry_report.pdf"); },
+  downloadSummaryCsv():     Promise<void> { return _downloadGet("/api/export/summary-csv", "asymmetry_summary.csv"); },
+  downloadPlots():          Promise<void> { return _downloadGet("/api/export/plots", "asymmetry_plots.zip"); },
+  downloadConstraintAtlas():Promise<void> { return _downloadGet("/api/export/constraint-atlas", "constraint_atlas.zip"); },
+  downloadGapAnalysis():    Promise<void> { return _downloadGet("/api/export/gap-analysis", "gap_analysis_figures.zip"); },
+  downloadConfig():         Promise<void> { return _downloadGet("/api/export/config", "spindep_run_config.yaml"); },
+
+  async downloadHdf5(pairs: AnalysisPair[]): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/api/export/hdf5`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ pairs }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail ?? `Export failed (${res.status})`);
+    }
+    _saveBlob(await res.blob(), _filenameFromResponse(res, "spindep_data_archive.h5"));
+  },
 };

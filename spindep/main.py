@@ -3,7 +3,7 @@ from src.pipeline import run_pipeline
 
 DATASET_ROOT = "./datasets/normalized"
 
-RESULTS_ROOT = "./results"
+RESULTS_ROOT = "../results"
 
 
 if __name__ == "__main__":

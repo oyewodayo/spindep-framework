@@ -1,26 +1,56 @@
 # // matcher.py
-# ============================================================
-# SECTOR EQUIVALENCE
-# ============================================================
+"""
+Matter-antimatter pair matching for SPINDEP.
+
+Covers all sectors across all Dobrescu-Mocioiu couplings:
+  gAgA, gAgV, gVgV, gpgp, gpgs, gsgs
+"""
 from .parser import SECTOR_EQUIVALENCE
 
+
+# ============================================================
+# EXTENDED SECTOR EQUIVALENCE
+# Supersedes the base dict in parser.py with full coverage
+# ============================================================
+
 SECTOR_EQUIVALENCE = {
+    # lepton-lepton
+    "ee":       ["eebar"],
+    "eebar":    ["ee"],
+    "emu":      ["emubar"],
+    "emubar":   ["emu"],
+    "mumu":     ["mumubar"],
+    "mumubar":  ["mumu"],
 
-    "ee": ["eebar"],
+    # lepton-nucleon
+    "ep":       ["epbar"],
+    "epbar":    ["ep"],
+    "en":       ["enbar"],
+    "enbar":    ["en"],
+    "np":       ["npbar"],
+    "npbar":    ["np"],
 
-    "eebar": ["ee"],
+    # lepton-nucleus
+    "eN":       ["eNbar"],
+    "eNbar":    ["eN"],
 
-    "emu": ["emubar"],
+    # nucleon-nucleon
+    "nn":       ["nnbar"],
+    "nnbar":    ["nn"],
+    "pp":       ["ppbar"],
+    "ppbar":    ["pp"],
 
-    "emubar": ["emu"],
+    # nucleus sectors
+    # nN and pN are matter; their antimatter counterparts don't
+    # yet exist in the dataset, but define for future use.
+    "nN":       ["nNbar"],
+    "pN":       ["pNbar"],
 
-    "ep": ["epbar"],
-
-    "epbar": ["ep"],
-
-    "nn": ["nnbar"],
-
-    "nnbar": ["nn"],
+    # same-type pairings used in gAgV / gVgV
+    # These files compare e-n vs e-p within the same coupling
+    # (cross-sector within lepton-nucleon class)
+    "en":       ["enbar", "ep"],   # en can pair with ep for gAgV
+    "ep":       ["epbar", "en"],
 }
 
 
@@ -36,14 +66,20 @@ def compatible_sectors(a_sector, b_sector):
 
 # ============================================================
 # CHECK DATASET COMPATIBILITY
+# Two datasets are a valid matter-antimatter pair if they share:
+#   - same coupling (gAgA, gAgV, ...)
+#   - same potential (V2, V4+5, V9+10, ...)
+#   - same interaction_class (lepton-lepton, lepton-nucleon, ...)
+#   - compatible sectors
+#   - opposite matter/antimatter status
 # ============================================================
 
 def are_compatible(a, b):
     return (
-        a.coupling == b.coupling and
-        a.potential == b.potential and
+        a.coupling          == b.coupling          and
+        a.potential         == b.potential         and
         a.interaction_class == b.interaction_class and
-        compatible_sectors(a.sector, b.sector) and
+        compatible_sectors(a.sector, b.sector)     and
         a.contains_antimatter != b.contains_antimatter
     )
 

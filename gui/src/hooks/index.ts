@@ -294,33 +294,15 @@ export function useNullTest(): UseNullTestReturn {
     cancelRef.current = false;
 
     try {
-      const { job_id } = await (apiClient as any).runNullTest(cfg);
+      // POST /api/null_test runs synchronously and returns the full result —
+      // no job to poll.
+      const res = await apiClient.runNullTest(cfg);
+      if (cancelRef.current) return;
 
-      // Poll job (reuse same poll pattern as pipeline)
-      while (!cancelRef.current) {
-        try {
-          const job = await apiClient.pollJob(job_id);
-          if (cancelRef.current) break;
-
-          setLog(job.log ?? []);
-          setProgress(estimateProgress(job.log?.length ?? 0));
-
-          if (job.status === "done") {
-            setProgress(100);
-            const res = await (apiClient as any).getNullTestResult(cfg, job_id);
-            setResult(res);
-            setStatus("done");
-            return;
-          }
-          if (job.status === "error") {
-            setStatus("error");
-            return;
-          }
-        } catch {
-          // network blip
-        }
-        await new Promise(r => setTimeout(r, API_POLL_INTERVAL_MS));
-      }
+      setLog(res.log ?? []);
+      setProgress(100);
+      setResult(res);
+      setStatus("done");
     } catch (e) {
       console.error("Null test failed:", e);
       setStatus("error");
@@ -383,26 +365,13 @@ export function useNullTestBattery(): UseNullTestBatteryReturn {
     for (const cfg of configs) {
       if (cancelRef.current) break;
       try {
-        const { job_id } = await (apiClient as any).runNullTest(cfg);
-
-        // Poll to completion
-        let done = false;
-        while (!done && !cancelRef.current) {
-          await new Promise(r => setTimeout(r, API_POLL_INTERVAL_MS));
-          try {
-            const job = await apiClient.pollJob(job_id);
-            if (job.status === "done") {
-              const res = await (apiClient as any).getNullTestResult(cfg, job_id);
-              setBattery(prev => prev
-                ? { ...prev, results: [...prev.results, res] }
-                : null
-              );
-              done = true;
-            } else if (job.status === "error") {
-              done = true;
-            }
-          } catch { /* retry */ }
-        }
+        // POST /api/null_test runs synchronously and returns the full result.
+        const res = await apiClient.runNullTest(cfg);
+        if (cancelRef.current) break;
+        setBattery(prev => prev
+          ? { ...prev, results: [...prev.results, res] }
+          : null
+        );
       } catch (e) {
         console.error("Battery step failed:", e);
       }
