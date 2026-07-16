@@ -834,9 +834,7 @@ export const NullTestSection: React.FC<NullTestSectionProps> = ({ pairs }) => {
           background: T.redDim, border: `1px solid ${T.red}40`,
           color: T.red, fontSize: 12,
         }}>
-          <Icon name="error" size={14} /> Null test failed — check that{" "}
-          <span style={{ fontFamily: T.mono }}>POST /api/null_test</span> is implemented
-          on the server. See the API extension guide in ARCHITECTURE.md.
+          <Icon name="error" size={14} /> Null test failed — check the server log for details.
         </div>
       )}
 
@@ -850,30 +848,6 @@ export const NullTestSection: React.FC<NullTestSectionProps> = ({ pairs }) => {
           />
         </div>
       )}
-
-      {/* Server implementation guide */}
-      <div style={{
-        marginTop: 20, padding: "14px 16px", borderRadius: 8,
-        background: T.bg2, border: `1px solid ${T.border}`,
-        fontSize: 12, color: T.textDim, lineHeight: 1.8,
-      }}>
-        <b style={{ color: T.textHi }}>Server implementation required.</b> This feature calls{" "}
-        <span style={{ fontFamily: T.mono, color: T.blue }}>POST /api/null_test</span> and{" "}
-        <span style={{ fontFamily: T.mono, color: T.blue }}>GET /api/null_test/{"{"} job_id {"}"}</span>.
-        Add these to <span style={{ fontFamily: T.mono }}>app_server.py</span>:{" "}
-        the endpoint should accept <span style={{ fontFamily: T.mono }}>pair_id</span>,{" "}
-        <span style={{ fontFamily: T.mono }}>injected_aalpha</span>,{" "}
-        <span style={{ fontFamily: T.mono }}>injection_mode</span>, and{" "}
-        <span style={{ fontFamily: T.mono }}>seed</span>; modify the antimatter curve accordingly;
-        re-run the χ² pipeline; and return the same job/result schema as a regular run.
-        The response should include <span style={{ fontFamily: T.mono }}>mean_injected</span>,{" "}
-        <span style={{ fontFamily: T.mono }}>mean_recovered</span>,{" "}
-        <span style={{ fontFamily: T.mono }}>chi2_recovered</span>,{" "}
-        <span style={{ fontFamily: T.mono }}>pval_recovered</span>, and per-point{" "}
-        <span style={{ fontFamily: T.mono }}>points[]</span> with{" "}
-        <span style={{ fontFamily: T.mono }}>injected_a</span> and{" "}
-        <span style={{ fontFamily: T.mono }}>recovered_a</span>.
-      </div>
     </div>
   );
 };

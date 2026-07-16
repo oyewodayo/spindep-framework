@@ -2,7 +2,8 @@
 #!/usr/bin/env python3
 import re
 
-from fastapi import FastAPI, BackgroundTasks, Request, HTTPException
+from fastapi import FastAPI, BackgroundTasks, Request, HTTPException, Response
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn, uuid, json, sys, logging
 from pathlib import Path
@@ -25,7 +26,7 @@ jobs = {}
 _PAIR_DATASET_CACHE: dict[str, tuple] = {}
 
 DATA_ROOT    = Path.home() / "spindep_framework" / "spindep" / "datasets" / "normalized"
-RESULTS_ROOT = Path.home() / "spindep_framework" / "spindep" / "results"
+RESULTS_ROOT = Path.home() / "spindep_framework" / "results"
 
 _SPINDEP_ROOT = Path.home() / "spindep_framework" / "spindep"
 if str(_SPINDEP_ROOT) not in sys.path:
@@ -209,6 +210,8 @@ def _run_pipeline(job_id: str, mode: str):
 
 @app.post("/api/null_test")
 async def api_null_test(request: Request):
+    """Runs synchronously and returns the full result — there is no
+    background job for this endpoint, so there is no matching GET/poll route."""
     body    = await request.json()
     pair_id = body.get("pair_id", "")
     aalpha  = float(body.get("injected_aalpha", 0.0))
@@ -235,9 +238,121 @@ async def api_null_test(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/null_test/{job_id}")
-def api_null_test_result(job_id: str):
-    raise HTTPException(status_code=404, detail="async polling not yet implemented")
+# ─── Export routes ─────────────────────────────────────────────────────────────
+# Results live in a single shared RESULTS_ROOT (matching the CLI/pipeline
+# convention — there's no per-job archiving), so these serve whatever is
+# currently on disk from the most recent pipeline run rather than being keyed
+# by job_id.
+
+def _zip_dir_bytes(dir_path: Path) -> bytes:
+    import io, zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in sorted(dir_path.rglob("*")):
+            if f.is_file():
+                zf.write(f, arcname=str(f.relative_to(dir_path)))
+    return buf.getvalue()
+
+
+def _attachment(data: bytes, filename: str, media_type: str) -> Response:
+    return Response(
+        data, media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/api/export/report")
+def export_report():
+    reports_dir = RESULTS_ROOT / "reports"
+    pdfs = sorted(reports_dir.glob("*.pdf"), key=lambda p: p.stat().st_mtime) if reports_dir.exists() else []
+    if not pdfs:
+        raise HTTPException(status_code=404, detail="No report found yet — run the pipeline first")
+    latest = pdfs[-1]
+    return FileResponse(latest, filename=latest.name, media_type="application/pdf")
+
+
+@app.get("/api/export/summary-csv")
+def export_summary_csv():
+    path = RESULTS_ROOT / "tables" / "asymmetry_summary.csv"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="No summary CSV found yet — run the pipeline first")
+    return FileResponse(path, filename="asymmetry_summary.csv", media_type="text/csv")
+
+
+@app.get("/api/export/plots")
+def export_plots():
+    plots_dir = RESULTS_ROOT / "plots"
+    if not plots_dir.exists() or not any(plots_dir.glob("*.png")):
+        raise HTTPException(status_code=404, detail="No asymmetry plots found yet — run the pipeline first")
+    return _attachment(_zip_dir_bytes(plots_dir), "asymmetry_plots.zip", "application/zip")
+
+
+@app.get("/api/export/constraint-atlas")
+def export_constraint_atlas():
+    atlas_dir = RESULTS_ROOT / "figures" / "constraint_atlas"
+    if not atlas_dir.exists() or not any(atlas_dir.glob("*.png")):
+        raise HTTPException(status_code=404, detail="No constraint atlas figures found yet — run the pipeline first")
+    return _attachment(_zip_dir_bytes(atlas_dir), "constraint_atlas.zip", "application/zip")
+
+
+@app.get("/api/export/gap-analysis")
+def export_gap_analysis():
+    gap_dir = RESULTS_ROOT / "figures" / "gap_analysis"
+    if not gap_dir.exists() or not any(gap_dir.glob("*.png")):
+        raise HTTPException(status_code=404, detail="No gap analysis figures found yet — run the pipeline first")
+    return _attachment(_zip_dir_bytes(gap_dir), "gap_analysis_figures.zip", "application/zip")
+
+
+@app.get("/api/export/config")
+def export_config():
+    import yaml
+    from datetime import datetime
+    config = {
+        "generated_at":  datetime.now().isoformat(timespec="seconds"),
+        "dataset_root":  str(DATA_ROOT),
+        "results_root":  str(RESULTS_ROOT),
+    }
+    text = yaml.safe_dump(config, sort_keys=False)
+    return _attachment(text.encode(), "spindep_run_config.yaml", "application/x-yaml")
+
+
+@app.post("/api/export/hdf5")
+async def export_hdf5(request: Request):
+    """
+    Body: { pairs: AnalysisPair[] } — the GUI's currently active pairs (live
+    run or a restored history record). Packs each pair's g(lambda)/A_alpha
+    curve into one HDF5 group.
+    """
+    import io
+    import h5py
+    import numpy as np
+
+    body  = await request.json()
+    pairs = body.get("pairs", [])
+    if not pairs:
+        raise HTTPException(status_code=400, detail="No pairs supplied — run the pipeline first")
+
+    buf = io.BytesIO()
+    seen_names: dict[str, int] = {}
+    with h5py.File(buf, "w") as h5:
+        for pair in pairs:
+            # Pair ids aren't guaranteed unique — the same coupling/potential/
+            # sector label can come from more than one matter/antimatter file
+            # pair — so disambiguate repeats with a numeric suffix.
+            base_name = re.sub(r"[^\w.\-]", "_", pair.get("id", "pair"))
+            seen_names[base_name] = seen_names.get(base_name, 0) + 1
+            group_name = base_name if seen_names[base_name] == 1 else f"{base_name}_{seen_names[base_name]}"
+            grp = h5.create_group(group_name)
+            points = pair.get("points", [])
+            grp.create_dataset("log_lambda",        data=np.array([p.get("logLam", 0.0) for p in points]))
+            grp.create_dataset("log_g_matter",       data=np.array([p.get("logGm", 0.0)  for p in points]))
+            grp.create_dataset("log_g_antimatter",   data=np.array([p.get("logGa", 0.0)  for p in points]))
+            grp.create_dataset("A_alpha",            data=np.array([p.get("A", 0.0)      for p in points]))
+            for key in ("coupling", "potential", "secM", "secA", "meanAbsA", "chi2Weighted",
+                        "chi2Uniform", "pval", "dof", "lambdaMin", "lambdaMax"):
+                if key in pair and pair[key] is not None:
+                    grp.attrs[key] = pair[key]
+    return _attachment(buf.getvalue(), "spindep_data_archive.h5", "application/x-hdf5")
 
 def _infer_from_filename(filename: str) -> dict:
     """
