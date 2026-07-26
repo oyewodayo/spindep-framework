@@ -57,7 +57,7 @@ export const AtlasSection: React.FC<AtlasSectionProps> = ({ pairs }) => {
       <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
         <div>
           <label className="label">Coupling</label>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {couplings.map(c => (
               <button
                 key={c}
@@ -73,7 +73,7 @@ export const AtlasSection: React.FC<AtlasSectionProps> = ({ pairs }) => {
         <div style={{ width: 1, height: 32, background: T.border, margin: "0 4px" }} />
         <div>
           <label className="label">Potential</label>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {potentials.map(p => (
               <button
                 key={p}

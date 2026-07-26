@@ -262,7 +262,7 @@ function DatasetDrawer({ record, pairs, onClose }: {
         </div>
 
         {/* Metadata grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        <div className="split split-4" style={{ gap: 10 }}>
           {[
             ["Sector",           record.sector],
             ["Interaction",      record.interactionClass],
@@ -419,9 +419,9 @@ export const ProvenanceSection: React.FC<ProvenanceSectionProps> = ({ pairs }) =
       )}
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center", flexWrap: "wrap" }}>
         <SearchBar value={query} onChange={setQuery} placeholder="Search by name, author, journal, sector…" />
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {(["All", "Matter", "Antimatter"] as const).map(r => (
             <button
               key={r}

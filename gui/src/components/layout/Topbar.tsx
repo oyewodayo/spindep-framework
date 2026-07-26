@@ -9,6 +9,7 @@ interface TopbarProps {
   resultsReady: boolean;
   totalPairs: number;
   significantPairs: number;
+  onMenuClick: () => void;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -17,12 +18,16 @@ export const Topbar: React.FC<TopbarProps> = ({
   resultsReady,
   totalPairs,
   significantPairs,
+  onMenuClick,
 }) => {
   const pageLabel = NAV_ITEMS.find(n => n.id === activePage)?.label ?? "";
 
   return (
     <div className="topbar">
-      <div style={{ fontWeight: 600, color: T.textHi, fontSize: 14 }}>
+      <button className="menu-btn" onClick={onMenuClick} aria-label="Toggle navigation">
+        <Icon name="menu" size={16} />
+      </button>
+      <div style={{ fontWeight: 600, color: T.textHi, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {pageLabel}
       </div>
       <div style={{ flex: 1 }} />

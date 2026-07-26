@@ -197,14 +197,14 @@ def configure_path_windows(scripts_dir: Path):
     scripts_str = str(scripts_dir)
 
     try:
-        key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER,
+        key = winreg.OpenKey( # type: ignore
+            winreg.HKEY_CURRENT_USER, # pyright: ignore[reportAttributeAccessIssue]
             key_path,
             0,
-            winreg.KEY_READ | winreg.KEY_WRITE,
+            winreg.KEY_READ | winreg.KEY_WRITE, # type: ignore
         )
         try:
-            current_path, _ = winreg.QueryValueEx(key, "PATH")
+            current_path, _ = winreg.QueryValueEx(key, "PATH") # type: ignore
         except FileNotFoundError:
             current_path = ""
 
@@ -213,7 +213,7 @@ def configure_path_windows(scripts_dir: Path):
         if scripts_str not in path_entries:
             path_entries.append(scripts_str)
             new_path = ";".join(path_entries)
-            winreg.SetValueEx(key, "PATH", 0, winreg.REG_EXPAND_SZ, new_path)
+            winreg.SetValueEx(key, "PATH", 0, winreg.REG_EXPAND_SZ, new_path) # type: ignore
             ok(f"PATH updated in Windows registry")
             ok(f"Added: {scripts_str}")
             blank()
@@ -221,14 +221,14 @@ def configure_path_windows(scripts_dir: Path):
         else:
             ok("PATH already contains the SPINDEP scripts folder")
 
-        winreg.CloseKey(key)
+        winreg.CloseKey(key) # type: ignore
 
         # Broadcast WM_SETTINGCHANGE so Explorer / new shells pick it up
         try:
             import ctypes
             HWND_BROADCAST = 0xFFFF
             WM_SETTINGCHANGE = 0x001A
-            ctypes.windll.user32.SendMessageTimeoutW(
+            ctypes.windll.user32.SendMessageTimeoutW( # type: ignore
                 HWND_BROADCAST, WM_SETTINGCHANGE, 0, "Environment",
                 0x0002, 5000, None,
             )

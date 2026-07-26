@@ -210,3 +210,40 @@ ${sig.slice(0, 12).map(p =>
 \\end{tablenotes}
 \\end{table}`;
 }
+
+// ─── CSV generation ───────────────────────────────────────────────────────────
+
+function csvField(v: string | number): string {
+  const s = String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+export function buildCsvTable(pairs: AnalysisPair[]): string {
+  const header = [
+    "Pair ID", "Coupling", "Potential", "Class", "Sectors",
+    "|Aalpha| mean", "chi2 (uniform)", "chi2 (weighted)", "chi2 ratio",
+    "dof", "p-value (weighted)", "lambda min (m)", "lambda max (m)",
+  ];
+  const rows = pairs.map(p => [
+    p.id, p.coupling, p.potential, p.interactionClass ?? "",
+    `${p.secM} x ${p.secA}`,
+    p.meanAbsA?.toFixed(4), p.chi2Uniform?.toFixed(0), p.chi2Weighted?.toFixed(0),
+    p.chi2Ratio?.toFixed(3) ?? "", p.dof, p.pval?.toExponential(3),
+    p.lambdaMin?.toExponential(3), p.lambdaMax?.toExponential(3),
+  ]);
+  return [header, ...rows].map(r => r.map(csvField).join(",")).join("\n");
+}
+
+// ─── Client-side file download ─────────────────────────────────────────────────
+
+export function downloadTextFile(text: string, filename: string): void {
+  const blob = new Blob([text], { type: "text/plain" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

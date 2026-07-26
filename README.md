@@ -96,6 +96,7 @@ A_α(λ) = [g_m(λ) − g_ā(λ)] / [g_m(λ) + g_ā(λ)]
 
 - Python 3.9+
 - Linux, macOS, or Windows WSL
+- Node.js (LTS, from [nodejs.org](https://nodejs.org)) — only needed for `spin start` (the web interface)
 
 ### Option 1 — One-line install (recommended)
 
@@ -141,6 +142,17 @@ spin info --data ./datasets       # also shows dataset summary
 
 ## Quick Start
 
+**New to SPINDEP or not a terminal person?** Just run:
+
+```bash
+spin start
+```
+
+This launches the backend and the web interface together and opens it in your
+browser — no other commands needed. Press `Ctrl+C` in the terminal to stop it.
+
+For terminal / scripted use:
+
 ```bash
 # Full analysis on your dataset folder
 spin run --data ./datasets
@@ -163,6 +175,26 @@ spin import --from ~/Downloads/new_data \
 ## Usage — Terminal Commands
 
 The `spin` command covers the entire framework through simple sub-commands. All commands print coloured progress output and clear error messages.
+
+### `spin start` — Web GUI (recommended for most researchers)
+
+```
+spin start [--no-browser]
+```
+
+Starts the backend API (port 8001) and the web interface (port 5173) together,
+waits for both to come up, and opens the interface in your default browser.
+The first run installs the web interface's dependencies automatically (one-time,
+about a minute); after that it starts in a couple of seconds.
+
+```bash
+spin start                # start everything and open a browser tab
+spin start --no-browser   # start everything but don't open a browser
+```
+
+Stop both servers with `Ctrl+C` in the terminal where `spin start` is running.
+
+---
 
 ### `spin run` — Full pipeline
 
@@ -552,6 +584,7 @@ Both columns must be strictly positive. Rows with non-numeric or non-positive va
 
 | Command | Flags | Description |
 |---------|-------|-------------|
+| `spin start` | `[--no-browser]` | Launch backend + web GUI together |
 | `spin run` | `--data DIR  [--output DIR]` | Full pipeline |
 | `spin test` | `MATTER.CSV ANTI.CSV  [--plot FILE]  [--save FILE]  [--points N]` | Quick CPT test on two files |
 | `spin validate` | `--data DIR  [--verbose]` | Pre-flight checks |

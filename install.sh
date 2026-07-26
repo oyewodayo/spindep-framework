@@ -344,6 +344,7 @@ def print_usage():
     blank()
     print(f"{C.BOLD}{C.CYAN}Quick start:{C.RESET}")
     cmds = [
+        ("spin start",                                             "Launch the web interface (recommended)"),
         ("spin run      --data ./datasets",                       "Full analysis pipeline"),
         ("spin test     matter.csv anti.csv --plot",              "Quick CPT test with plot"),
         ("spin validate --data ./datasets",                       "Pre-flight check"),
@@ -365,14 +366,15 @@ def print_usage():
 def main():
     head("SPINDEP Installer")
 
-    script_dir = Path(__file__).parent.resolve()
+    repo_dir = Path(__file__).parent.resolve()
+    script_dir = repo_dir / "spindep_cli"
     if not (script_dir / "setup.py").exists():
         err(
             f"setup.py not found in {script_dir}.\n"
             "  Run this script from the spindep_framework folder."
         )
 
-    info(f"Framework directory: {script_dir}")
+    info(f"Framework directory: {repo_dir}")
     blank()
 
     check_python()

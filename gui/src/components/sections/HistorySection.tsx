@@ -466,7 +466,8 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
               <div key={record.id}>
                 <div
                   style={{
-                    display: "flex", alignItems: "center", gap: 10,
+                    display: "flex", alignItems: "center", gap: 10, rowGap: 6,
+                    flexWrap: "wrap",
                     padding: "10px 16px",
                     borderBottom: idx < history.length - 1 ? `1px solid ${T.border}20` : "none",
                     background: isActive ? `${T.blueDim}60` : isExpanded ? T.bg2 : "transparent",
