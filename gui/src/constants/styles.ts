@@ -28,10 +28,47 @@ input, select, textarea { font-family: ${T.sans}; }
 .nav-item.active { background: ${T.blueDim}; color: ${T.blue}; font-weight: 500; }
 .nav-item .badge { margin-left: auto; background: ${T.blue}; color: #000; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 8px; font-family: ${T.mono}; }
 
+/* ── Mobile nav toggle / off-canvas sidebar ── */
+.menu-btn { display: none; align-items: center; justify-content: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 6px; border: 1px solid ${T.border}; background: transparent; color: ${T.textDim}; }
+.menu-btn:hover { background: ${T.bg2}; color: ${T.text}; }
+.sidebar-close-btn { display: none; flex-shrink: 0; padding: 4px; border-radius: 6px; border: none; background: none; color: ${T.textDim}; }
+.sidebar-close-btn:hover { background: ${T.bg2}; color: ${T.text}; }
+.sidebar-backdrop { display: none; }
+
+@media (max-width: 860px) {
+  .menu-btn { display: inline-flex; }
+  .sidebar-close-btn { display: inline-flex; }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform .22s ease;
+    box-shadow: 4px 0 24px rgba(0,0,0,.5);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-backdrop.open {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 55;
+  }
+  .topbar { padding: 0 12px; gap: 8px; }
+  .workspace { padding: 14px; }
+  .split-2, .split-3, .split-4, .split-5 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .topbar .tag { display: none; }
+}
+
 /* ── Panels ── */
-.panel { background: ${T.panel}; border: 1px solid ${T.border}; border-radius: 10px; overflow: hidden; }
-.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid ${T.border}; }
-.panel-title { display: flex; align-items: center; gap: 8px; font-weight: 600; color: ${T.textHi}; font-size: 13px; }
+.panel { background: ${T.panel}; border: 1px solid ${T.border}; border-radius: 10px; overflow: hidden; max-width: 100%; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 12px 16px; border-bottom: 1px solid ${T.border}; }
+.panel-title { display: flex; align-items: center; gap: 8px; font-weight: 600; color: ${T.textHi}; font-size: 13px; overflow-wrap: anywhere; }
 
 /* ── Buttons ── */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; border: 1px solid transparent; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .12s; white-space: nowrap; }

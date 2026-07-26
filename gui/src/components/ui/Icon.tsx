@@ -7,7 +7,7 @@ type IconName =
   | "table"  | "check"  | "warn"    | "error"    | "info"     | "dl"
   | "atom"   | "layers" | "report"  | "chevron"  | "chevD"    | "search"
   | "settings"| "validate"| "close" | "copy"     | "scope"    | "wifi"
-  | "wifiOff";
+  | "wifiOff"| "menu";
 
 interface IconProps {
   name: IconName;
@@ -40,6 +40,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
   scope:    <><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /><line x1="2" y1="12" x2="9" y2="12" /><line x1="15" y1="12" x2="22" y2="12" /></>,
   wifi:     <><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></>,
   wifiOff:  <><line x1="1" y1="1" x2="23" y2="23" /><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" /><path d="M5 12.55a11 11 0 0 1 5.17-2.39" /><path d="M10.71 5.05A16 16 0 0 1 22.56 9" /><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></>,
+  menu:     <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>,
 };
 
 export const Icon: React.FC<IconProps> = ({ name, size = 16 }) => (

@@ -45,9 +45,8 @@ export const PairDetail: React.FC<PairDetailProps> = ({ pair, onClose }) => {
 
         {/* Metadata row — mirrors the report's dataset/class table */}
         <div
+          className="split split-4"
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr 1fr",
             gap: 8,
             marginBottom: 16,
             padding: "10px 14px",

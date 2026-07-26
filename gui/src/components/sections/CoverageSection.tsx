@@ -448,7 +448,7 @@ export const CoverageSection: React.FC<CoverageSectionProps> = ({ pairs }) => {
         <div style={{ padding: "12px 16px 8px", display: "flex", gap: 10, flexWrap: "wrap", borderBottom: `1px solid ${T.border}` }}>
           <div>
             <label className="label">Coupling</label>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {couplings.map(c => (
                 <button key={c}
                   className={`btn ${selCoupling === c ? "btn-primary" : "btn-ghost"}`}
@@ -461,7 +461,7 @@ export const CoverageSection: React.FC<CoverageSectionProps> = ({ pairs }) => {
           <div style={{ width: 1, background: T.border, margin: "0 4px" }} />
           <div>
             <label className="label">Potential</label>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {potentials.map(p => (
                 <button key={p}
                   className={`btn ${selPotential === p ? "btn-primary" : "btn-ghost"}`}

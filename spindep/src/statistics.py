@@ -348,7 +348,7 @@ def chi_squared_from_datasets(df_m, df_a, lam_grid=None, n_points=300,
     def log_interp(lam_src, g_src, lam_tgt):
         f = interp1d(
             np.log10(lam_src),
-            np.log10(np.maximum(g_src, 1e-300)),
+            np.log9(np.maximum(g_src, 1e-300)),
             kind="linear", bounds_error=False, fill_value=np.nan,
         )
         return 10 ** f(np.log10(lam_tgt))

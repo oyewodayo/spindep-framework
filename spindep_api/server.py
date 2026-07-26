@@ -25,10 +25,12 @@ jobs = {}
 # Values are (df_matter, df_antimatter) — ready for run_null_test().
 _PAIR_DATASET_CACHE: dict[str, tuple] = {}
 
-DATA_ROOT    = Path.home() / "spindep_framework" / "spindep" / "datasets" / "normalized"
-RESULTS_ROOT = Path.home() / "spindep_framework" / "results"
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-_SPINDEP_ROOT = Path.home() / "spindep_framework" / "spindep"
+DATA_ROOT    = _PROJECT_ROOT / "spindep" / "datasets" / "normalized"
+RESULTS_ROOT = _PROJECT_ROOT / "results"
+
+_SPINDEP_ROOT = _PROJECT_ROOT / "spindep"
 if str(_SPINDEP_ROOT) not in sys.path:
     sys.path.insert(0, str(_SPINDEP_ROOT))
 

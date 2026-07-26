@@ -42,6 +42,7 @@ export default function App() {
   useGlobalStyles();
 
   const [page, setPage] = useState<NavSection>("ingest");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const apiOnline = useApiHealth();
 
   const {
@@ -140,6 +141,8 @@ export default function App() {
         totalPairs={activePairs.length}
         significantPairs={significantPairs}
         historyCount={history.length}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
       <div className="main-area">
         <Topbar
@@ -148,6 +151,7 @@ export default function App() {
           resultsReady={isResultsReady}
           totalPairs={activePairs.length}
           significantPairs={significantPairs}
+          onMenuClick={() => setSidebarOpen(o => !o)}
         />
         <div className="workspace">{renderPage()}</div>
       </div>

@@ -39,10 +39,10 @@ interface PanelHeaderProps {
 
 export const PanelHeader: React.FC<PanelHeaderProps> = ({ title, icon, right, sub }) => (
   <div className="panel-header">
-    <div>
+    <div style={{ minWidth: 0, flex: "1 1 auto" }}>
       <div className="panel-title">
         {icon && (
-          <span style={{ color: T.blue }}>
+          <span style={{ color: T.blue, flexShrink: 0 }}>
             <Icon name={icon as any} size={14} />
           </span>
         )}

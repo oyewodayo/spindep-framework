@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { T, SIG } from "../../constants";
-import { pvalColor, formatPval } from "../../utils";
+import { pvalColor, formatPval, buildCsvTable, buildLatexTable, downloadTextFile } from "../../utils";
 import { Stat, PanelHeader, SearchBar, SigTag } from "../ui";
 import { Icon } from "../ui/Icon";
 import { PairDetail } from "./PairDetail";
@@ -94,10 +94,19 @@ export const BatchResultsSection: React.FC<BatchResultsSectionProps> = ({ pairs 
           <option>All</option>
           {couplings.map(c => <option key={c}>{c}</option>)}
         </select>
-        <button className="btn btn-ghost" style={{ marginLeft: "auto" }}>
+        <button
+          className="btn btn-ghost"
+          style={{ marginLeft: "auto" }}
+          disabled={sorted.length === 0}
+          onClick={() => downloadTextFile(buildCsvTable(sorted), "cpt_pairs.csv")}
+        >
           <Icon name="dl" size={12} /> Export CSV
         </button>
-        <button className="btn btn-ghost">
+        <button
+          className="btn btn-ghost"
+          disabled={sorted.length === 0}
+          onClick={() => downloadTextFile(buildLatexTable(sorted), "cpt_asymmetry_table.tex")}
+        >
           <Icon name="dl" size={12} /> Export LaTeX
         </button>
       </div>

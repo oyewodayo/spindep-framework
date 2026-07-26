@@ -7,6 +7,7 @@ After   pip install -e .   this becomes the global 'spin' command.
 
 USAGE
 -----
+  spin start     [--no-browser]             # Launch the web GUI (backend + frontend)
   spin run       --data ./datasets          # Full pipeline
   spin test      matter.csv anti.csv        # Quick CPT test on two files
   spin validate  --data ./datasets          # Pre-flight checks
@@ -73,6 +74,11 @@ import shutil
 import textwrap
 import json
 import platform
+import signal
+import socket
+import subprocess
+import time
+import webbrowser
 from pathlib import Path
 from datetime import datetime
 
@@ -171,6 +177,23 @@ def _find_core() -> "Path | None":
     return None
 
 
+def _find_project_root() -> "Path | None":
+    """
+    Locate the spindep_framework checkout (the folder containing both
+    spindep_api/ and gui/), regardless of where 'spin' is invoked from.
+    """
+    candidates = [
+        Path(__file__).parent.parent.parent,          # monorepo: spindep_cli/spindep_cli/cli.py -> root
+        Path(os.environ.get("SPINDEP_HOME", "")).parent,
+        Path.home() / "spindep_framework",
+        Path.cwd(),
+    ]
+    for c in candidates:
+        if c and (c / "spindep_api" / "server.py").exists() and (c / "gui").is_dir():
+            return c
+    return None
+
+
 def _load() -> dict:
     """Import all SPINDEP core modules, auto-detecting the source location."""
     src = _find_core()
@@ -258,6 +281,179 @@ def _print_pair_results(stats: dict, matter_name: str = "matter", anti_name: str
     print(f"    sigma antimatter (avg):{stats['mean_sigma_a']*100:.1f}%  (from curve curvature)")
     print(f"    chi2 ratio (w/u):      {stats['improvement']:.3f}  "
           f"{'<-- more conservative' if stats['improvement'] < 1 else ''}")
+
+
+# ============================================================
+# COMMAND: start  (launch backend API + web GUI together)
+# ============================================================
+
+BACKEND_PORT  = 8001
+FRONTEND_PORT = 5173
+
+
+def _port_open(host: str, port: int, timeout: float = 0.5) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _wait_for_port(host: str, port: int, timeout: float) -> bool:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if _port_open(host, port):
+            return True
+        time.sleep(0.5)
+    return False
+
+
+def _popen_detached(cmd: list, cwd: str) -> subprocess.Popen:
+    """
+    Launch a child in its own process group/session, so tools like
+    'npm run dev' that spawn further children (vite, esbuild, ...) can be
+    stopped as a unit instead of leaving orphans behind.
+    """
+    if platform.system() == "Windows":
+        return subprocess.Popen(
+            cmd, cwd=cwd, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+        )
+    return subprocess.Popen(cmd, cwd=cwd, start_new_session=True)
+
+
+def _stop_process(proc: "subprocess.Popen | None"):
+    if proc is None or proc.poll() is not None:
+        return
+
+    if platform.system() == "Windows":
+        try:
+            proc.send_signal(signal.CTRL_BREAK_EVENT)
+        except Exception:
+            proc.terminate()
+    else:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        except OSError:
+            proc.terminate()
+
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        if platform.system() == "Windows":
+            proc.kill()
+        else:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except (ProcessLookupError, OSError):
+                proc.kill()
+
+
+def cmd_start(args):
+    banner("SPINDEP  .  Start")
+
+    root = _find_project_root()
+    if root is None:
+        err("Could not find the spindep_framework project "
+            "(needs a spindep_api/ folder and a gui/ folder).")
+        blank()
+        grey("  Run 'spin start' from inside the cloned spindep_framework folder,")
+        grey("  or set SPINDEP_HOME to point at it.")
+        sys.exit(1)
+
+    api_dir  = root / "spindep_api"
+    gui_dir  = root / "gui"
+    info(f"Project: {root}")
+    blank()
+
+    backend_proc = None
+    frontend_proc = None
+
+    # Treat SIGTERM/SIGHUP (e.g. a closed terminal, `kill`, or a process
+    # manager stopping us) the same as Ctrl+C, so child processes are
+    # always cleaned up instead of left running on the ports.
+    def _handle_signal(signum, frame):
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, _handle_signal)
+    if hasattr(signal, "SIGHUP"):
+        signal.signal(signal.SIGHUP, _handle_signal)
+
+    try:
+        # ── backend ──────────────────────────────────────────
+        if _port_open("localhost", BACKEND_PORT):
+            warn(f"Something is already listening on port {BACKEND_PORT} — "
+                 "assuming the backend is already running.")
+        else:
+            info(f"Starting backend API on port {BACKEND_PORT}...")
+            backend_proc = _popen_detached([sys.executable, "server.py"], cwd=str(api_dir))
+            if not _wait_for_port("localhost", BACKEND_PORT, timeout=25):
+                err(f"Backend did not come up on port {BACKEND_PORT} within 25s.")
+                _stop_process(backend_proc)
+                sys.exit(1)
+            ok(f"Backend is up:  http://localhost:{BACKEND_PORT}")
+
+        # ── frontend ─────────────────────────────────────────
+        npm = shutil.which("npm")
+        if npm is None:
+            err("Node.js/npm not found — required to run the web interface.")
+            grey("  Install Node.js (LTS) from https://nodejs.org, then re-run 'spin start'.")
+            _stop_process(backend_proc)
+            sys.exit(1)
+
+        if not (gui_dir / "node_modules").is_dir():
+            info("First run — installing web interface dependencies (one-time, ~1 min)...")
+            install = subprocess.run([npm, "install"], cwd=str(gui_dir))
+            if install.returncode != 0:
+                err("npm install failed — see output above.")
+                _stop_process(backend_proc)
+                sys.exit(1)
+            ok("Dependencies installed.")
+
+        if _port_open("localhost", FRONTEND_PORT):
+            warn(f"Something is already listening on port {FRONTEND_PORT} — "
+                 "assuming the web interface is already running.")
+        else:
+            info(f"Starting web interface on port {FRONTEND_PORT}...")
+            frontend_proc = _popen_detached(
+                [npm, "run", "dev", "--", "--port", str(FRONTEND_PORT), "--strictPort"],
+                cwd=str(gui_dir),
+            )
+            if not _wait_for_port("localhost", FRONTEND_PORT, timeout=30):
+                err(f"Web interface did not come up on port {FRONTEND_PORT} within 30s.")
+                _stop_process(frontend_proc)
+                _stop_process(backend_proc)
+                sys.exit(1)
+            ok(f"Web interface is up:  http://localhost:{FRONTEND_PORT}")
+
+        blank()
+        if not args.no_browser:
+            webbrowser.open(f"http://localhost:{FRONTEND_PORT}")
+
+        ok("SPINDEP is running.")
+        grey(f"    Web interface:  http://localhost:{FRONTEND_PORT}")
+        grey(f"    Backend API:    http://localhost:{BACKEND_PORT}")
+        blank()
+        grey("  Press Ctrl+C to stop.")
+
+        # Idle until either child process exits or the user hits Ctrl+C.
+        while True:
+            time.sleep(1)
+            if backend_proc is not None and backend_proc.poll() is not None:
+                err("Backend process exited unexpectedly.")
+                break
+            if frontend_proc is not None and frontend_proc.poll() is not None:
+                err("Web interface process exited unexpectedly.")
+                break
+
+    except KeyboardInterrupt:
+        blank()
+        info("Stopping...")
+    finally:
+        _stop_process(frontend_proc)
+        _stop_process(backend_proc)
+        ok("Stopped.")
 
 
 # ============================================================
@@ -696,6 +892,9 @@ def cmd_info(args):
 
 EPILOG = f"""
 {C.BOLD}Examples:{C.RESET}
+  {C.CYAN}spin start{C.RESET}
+      Launch the web interface (backend + frontend) and open it in your browser.
+
   {C.CYAN}spin run   --data ./datasets{C.RESET}
       Full pipeline on your dataset folder.
 
@@ -741,6 +940,15 @@ def main():
     )
 
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
+
+    # ── start ────────────────────────────────────────────────
+    p = sub.add_parser("start",
+        help="Launch the web GUI (backend + frontend) in your browser",
+        description="Start the backend API and the web interface together, "
+                    "then open it in your default browser.\n\n"
+                    "Example:\n  spin start")
+    p.add_argument("--no-browser", action="store_true",
+        help="Don't automatically open a browser tab")
 
     # ── run ──────────────────────────────────────────────────
     p = sub.add_parser("run",
@@ -850,6 +1058,7 @@ def main():
         sys.exit(0)
 
     {
+        "start":    cmd_start,
         "run":      cmd_run,
         "test":     cmd_test,
         "validate": cmd_validate,

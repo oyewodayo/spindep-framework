@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { T, SIG } from "../../constants";
-import { buildLatexTable } from "../../utils";
+import { buildLatexTable, downloadTextFile } from "../../utils";
 import { apiClient } from "../../api/client";
 import { PanelHeader } from "../ui";
 import { Icon } from "../ui/Icon";
@@ -34,18 +34,6 @@ const OUTPUTS: OutputSpec[] = [
   { key: "hdf5",             label: "HDF5 data archive",    icon: "dl",       desc: "All interpolated g(λ) and A_α(λ) arrays",              size: "~22 MB", ext: "h5"   },
   { key: "config",           label: "YAML config used",     icon: "settings", desc: "Reproducibility: exact config that produced this run", size: "<1 KB",  ext: "yaml" },
 ];
-
-function downloadTextFile(text: string, filename: string): void {
-  const blob = new Blob([text], { type: "text/plain" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
 
 export const ExportSection: React.FC<ExportSectionProps> = ({ pairs }) => {
   const sig             = pairs.filter(p => p.pval < SIG.STANDARD);
@@ -95,9 +83,7 @@ export const ExportSection: React.FC<ExportSectionProps> = ({ pairs }) => {
         </p>
       </div>
 
-      <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}
-      >
+      <div className="split split-2" style={{ marginBottom: 20 }}>
         {OUTPUTS.map(o => {
           const isBusy = busyKey === o.key;
           const isErr  = errorKey === o.key;
