@@ -10,7 +10,7 @@ __pycache__/
 *.pyo
 
 # Package build
-spindep.egg-info/
+*.egg-info/
 
 # SPINDEP results
 results/

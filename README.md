@@ -103,7 +103,7 @@ A_α(λ) = [g_m(λ) − g_ā(λ)] / [g_m(λ) + g_ā(λ)]
 ```bash
 git clone https://github.com/oyewodayo/spindep_framework.git
 cd spindep_framework
-bash install.sh
+python3 install.py
 ```
 
 The install script will:
@@ -800,7 +800,7 @@ FILENAME_SECTOR_OVERRIDES["MyAuthor_2024"] = ("ep", False)
 
 ```
 spindep_framework/
-├── install.sh                    # One-line installer
+├── install.py                    # One-line installer
 ├── setup.py                      # pip install config (registers 'spin')
 ├── README.md                     # This file
 ├── spin_run.yaml                 # Example config files

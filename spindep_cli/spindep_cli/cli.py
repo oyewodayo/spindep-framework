@@ -214,7 +214,6 @@ def _load() -> dict:
     try:
         from src.parser           import discover_datasets, load_dataset
         from src.matcher          import build_pairs
-        from src.asymmetry        import compute_asymmetry
         from src.statistics       import chi_squared_from_datasets
         from src.unit_conversion  import convert_lambda_to_metres, audit_units
         from src.pipeline         import run_pipeline

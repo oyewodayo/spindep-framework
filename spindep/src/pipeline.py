@@ -9,7 +9,6 @@ import numpy as np
 
 from .parser import discover_datasets, load_dataset
 from .matcher import build_pairs
-from .asymmetry import compute_asymmetry
 from .statistics import (
     chi_squared_sensitivity,
     chi_squared_from_datasets,
@@ -21,7 +20,7 @@ from .gap_analysis import run_gap_analysis
 from .constraint_plots import run_constraint_plots
 
 
-def run_pipeline(dataset_root, results_root, json_out=None):  # ← added json_out
+def run_pipeline(dataset_root, results_root, json_out=None):  
 
     dataset_root = Path(dataset_root)
     results_root = Path(results_root)
@@ -92,7 +91,7 @@ def run_pipeline(dataset_root, results_root, json_out=None):  # ← added json_o
     # ANALYSIS LOOP
     # --------------------------------------------------------
     summary_rows = []
-    gui_pairs    = []  # ← FIXED: moved outside the loop
+    gui_pairs    = []  
 
     for matter_ds, antimatter_ds in pairs:
 
@@ -121,7 +120,7 @@ def run_pipeline(dataset_root, results_root, json_out=None):  # ← added json_o
         g_m  = stats["g_m"]
         g_a  = stats["g_a"]
 
-        # ← FIXED: define valid BEFORE it is used
+ 
         valid = np.isfinite(g_m) & np.isfinite(g_a)
 
         chi2_u  = stats["chi2_uniform"]
