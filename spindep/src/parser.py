@@ -255,6 +255,31 @@ FILENAME_SECTOR_OVERRIDES = {
     "Salumbides_2018_mu_N":      ("muN",  False),
     "Salumbides_2018_p_N":       ("pN",   False),
 
+    # ── gsgs specific, V1-prefixed (post spindep-convention rename) ──
+    # Same stems as above with a V1_ prefix added to comply with the
+    # canonical {V}{n}_{Author}{Year}_{sector}_{coupling}.csv naming
+    # convention. Old keys kept above for other couplings' copies
+    # (e.g. eNastro_m_abs.csv also exists under gpgp/).
+    "V1_Casimir_ee":             ("ee",     False),
+    "V1_Torsion_ee":             ("ee",     False),
+    "V1_WEP_ee":                 ("ee",     False),
+    "V1_Adkins_2022_eeplus":     ("eebar",  True),
+    "V1_Ohayon_2022_e_muplus":   ("emu",    False),
+    "V1_Stadnik_2023_e_muplus":  ("emu",    False),
+    "V1_Delaunay_2017":          ("ee",     False),
+    "V1_Delaunay_2017_en":       ("en",     False),
+    "V1_Casimir_NN":             ("nN",     False),
+    "V1_Delaunay_2022_NN":       ("nN",     False),
+    "V1_Torsion_NN":             ("nN",     False),
+    "V1_WEP_NN":                 ("nN",     False),
+    "V1_Salumbides_2018_mu_N":  ("muN",    False),
+    "V1_Salumbides_2018_p_N":   ("pN",     False),
+    "V1_eeastro_m_abs":          ("eastro", False),
+    "V1_eNastro_m_abs":          ("eNastro",False),
+    "V1_Neutron_scattering":     ("nn",     False),
+    "V1_Supernova_mu_mu":        ("mumu",   False),
+    "V1_Alighanbari_2020":       ("ep",     False),
+
     # ── gAgV / gVgV Combined experiment-type files ────────────
     # lepton-lepton
     "Combined_Casimir_e-e":      ("ee",   False),
@@ -433,12 +458,15 @@ def normalize_sector(raw):
     return SECTOR_ALIASES.get(s, SECTOR_ALIASES.get(raw.strip(), s))
 
 
-def extract_sector(parts):
+def extract_sector(parts, coupling=None):
     skip = {
         "m", "M", "abs", "ABS", "copy", "V1", "V2", "V3", "V4",
         "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13",
         "V14", "V15", "V16", "combined", "Combined",
     }
+    # spindep-convention filenames end in "_{coupling}" (e.g. "..._gsgs.csv");
+    # that token is never a sector, so exclude it from candidates.
+    coupling_lc = coupling.lower() if coupling else None
     candidates = []
 
     for p in reversed(parts):
@@ -448,6 +476,8 @@ def extract_sector(parts):
         if re.match(r"^V\d+(\+\d+)?$", p_clean, re.IGNORECASE):
             continue
         if p_clean in skip:
+            continue
+        if coupling_lc and p_clean.lower() == coupling_lc:
             continue
         if re.match(r"^[a-zA-Z]", p_clean):
             candidates.append(p_clean)
@@ -500,6 +530,13 @@ def extract_year(parts):
     for p in parts:
         if re.match(r"^\d{4}$", p):
             return p
+    # spindep-convention fuses {Author}{Year} with no separator (e.g.
+    # "Smith2024"); fall back to a trailing 4-digit year on any alpha token.
+    for p in parts:
+        if any(c.isalpha() for c in p):
+            m = re.search(r"(\d{4})$", p)
+            if m:
+                return m.group(1)
     return "UNKNOWN"
 
 
@@ -517,6 +554,8 @@ def extract_author(parts):
             continue
         if any(c.isalpha() for c in p):
             author = re.sub(r"^\d+[a-z]?", "", p)
+            # spindep-convention fused "{Author}{Year}" (e.g. "Smith2024")
+            author = re.sub(r"\d{4}$", "", author)
             if author:
                 return author
     return "UnknownAuthor"
@@ -553,7 +592,7 @@ def parse_dataset(filepath):
 
             if sector is None:
                 # Fall back to underscore-token extraction
-                sector_raw = extract_sector(parts)
+                sector_raw = extract_sector(parts, coupling=coupling)
                 sector     = normalize_sector(sector_raw)
 
                 if sector not in KNOWN_SECTORS:

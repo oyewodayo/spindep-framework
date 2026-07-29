@@ -218,7 +218,7 @@ def plot_single_potential(datasets_for_potential, potential, output_path,
 
 
 # ============================================================
-# FIGURE 2: MULTI-PANEL ATLAS (all potentials in one figure)
+# FIGURE 2: MULTI-PANEL ATLAS (all potentials in one figure).
 # ============================================================
 
 def plot_constraint_atlas(datasets, output_path, max_panels=20):
