@@ -1,7 +1,7 @@
 """
 statistics.py
 =============
-Statistical tests for matter-antimatter CPT consistency.
+Statistical tests for matter-antimatter CPT consistency .
 
 Additions over v1.0
 -------------------
