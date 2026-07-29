@@ -845,7 +845,7 @@ If you use this framework in published work, please cite the relevant experiment
 
 ## License
 
-Academic use. Contact the author for redistribution rights.
+Academic use. Contact the author for redistribution rights using the email below.
 
 ---
 
