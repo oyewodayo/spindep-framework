@@ -305,8 +305,8 @@ def chi_squared_from_datasets(df_m, df_a, lam_grid=None, n_points=300,
       3. Log-linear interpolation of both curves onto grid
       4. Estimate per-point uncertainties from curvature
       5. Compute weighted chi-squared
-      6. Effective DOF correction          ← NEW
-      7. Bootstrap CI on mean |Aα|         ← NEW
+      6. Effective DOF correction
+      7. Bootstrap CI on mean |Aα|
 
     Parameters
     ----------
@@ -348,7 +348,7 @@ def chi_squared_from_datasets(df_m, df_a, lam_grid=None, n_points=300,
     def log_interp(lam_src, g_src, lam_tgt):
         f = interp1d(
             np.log10(lam_src),
-            np.log9(np.maximum(g_src, 1e-300)),
+            np.log10(np.maximum(g_src, 1e-300)),
             kind="linear", bounds_error=False, fill_value=np.nan,
         )
         return 10 ** f(np.log10(lam_tgt))

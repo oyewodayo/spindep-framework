@@ -523,6 +523,26 @@ def extract_author(parts):
 
 
 # ============================================================
+# FILENAME → potential OVERRIDES
+# For files whose potential cannot be parsed from the filename at all
+# (no V-token, no numeric prefix). Only add an entry here once the
+# source publication has been checked to confirm the potential label --
+# see the comment on each entry for the verification.
+# ============================================================
+
+FILENAME_POTENTIAL_OVERRIDES = {
+    # Delaunay, Frugiuele, Fuchs & Soreq (2017), Phys. Rev. D 96, 115002:
+    # "Probing new spin-independent interactions through precision
+    # spectroscopy in atoms with few electrons" -- spin-independent
+    # scalar (monopole-monopole) interaction between electrons -> V1.
+    "Delaunay_2017":       "V1",
+    # Adkins, Cassidy & Perez-Rios (2022), Phys. Rept. 975, 1: bounds on
+    # spin-independent g_s^e g_s^{e+} from positronium spectroscopy -> V1.
+    "Adkins_2022_eeplus":  "V1",
+}
+
+
+# ============================================================
 # MAIN PARSE FUNCTION
 # ============================================================
 
@@ -538,7 +558,7 @@ def parse_dataset(filepath):
     parts = [p.replace("V4p5", "V4+5") for p in parts]
 
     try:
-        potential                    = extract_potential(parts)
+        potential = FILENAME_POTENTIAL_OVERRIDES.get(name_clean) or extract_potential(parts)
         year                         = extract_year(parts)
         author                       = extract_author(parts)
         coupling, interaction_class  = extract_coupling_and_class(filepath)
@@ -590,7 +610,7 @@ def parse_dataset(filepath):
 # ============================================================
 
 def discover_datasets(root):
-    root = Path(root)
+    root = Path(root).resolve()
     datasets = []
     for filepath in root.rglob("*.csv"):
         parsed = parse_dataset(filepath)

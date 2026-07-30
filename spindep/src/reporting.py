@@ -163,15 +163,16 @@ def build_summary_table(rows, styles):
     headers = [
         "Coupling", "Potential", "Sector",
         "Matter", "Antimatter",
-        "|A| mean", "χ² uniform", "χ² weighted", "p-value (w)"
+        "|A| mean", "χ² weighted", "dof_eff", "p-value (dof_eff)"
     ]
     col_w = [2.0*cm, 1.6*cm, 1.4*cm, 2.8*cm, 2.8*cm,
-             1.5*cm, 2.0*cm, 2.0*cm, 1.9*cm]
+             1.5*cm, 2.0*cm, 1.6*cm, 2.3*cm]
 
     data = [headers]
     for r in rows:
-        pval_w = r.get("p_value_weighted", r.get("p_value", 0))
-        p_label = significance_label(pval_w)[:2].strip()
+        pval_eff = r.get("p_value_weighted_eff", r.get("p_value_weighted", r.get("p_value", 0)))
+        dof_eff  = r.get("dof_effective", r.get("dof", 300))
+        p_label  = significance_label(pval_eff)[:2].strip()
         data.append([
             r["coupling"],
             r["potential"],
@@ -179,9 +180,9 @@ def build_summary_table(rows, styles):
             r["matter_source"],
             r["antimatter_source"],
             f"{r['mean_abs_A']:.3f}",
-            f"{r.get('chi2_uniform', r.get('chi2', 0)):.0f}",
             f"{r.get('chi2_weighted', r.get('chi2', 0)):.0f}",
-            f"{pval_w:.2e} {p_label}",
+            f"{int(dof_eff)}",
+            f"{pval_eff:.2e} {p_label}",
         ])
 
     tbl = Table(data, colWidths=col_w, repeatRows=1)
@@ -276,19 +277,29 @@ def build_pair_section(row, plot_path, styles, pair_index, total_pairs):
     p_w   = row.get("p_value_weighted", row.get("p_value", 0))
     c_u   = row.get("chi2_uniform",     row.get("chi2",    0))
     c_w   = row.get("chi2_weighted",    row.get("chi2",    0))
-    dof   = row.get("dof", 300)
+    dof     = row.get("dof", 300)
+    dof_eff = row.get("dof_effective", dof)
+    p_w_eff = row.get("p_value_weighted_eff", p_w)
+    autocorr = row.get("autocorr_length", 1.0)
+    ci_lo   = row.get("aalpha_ci_low")
+    ci_hi   = row.get("aalpha_ci_high")
     A     = row["mean_abs_A"]
     sm    = row.get("mean_sigma_m_pct", 10.0)
     sa    = row.get("mean_sigma_a_pct", 10.0)
     ratio = row.get("chi2_ratio", 1.0)
 
+    ci_str = f"[{ci_lo:.4f}, {ci_hi:.4f}]" if ci_lo is not None and ci_hi is not None else "n/a"
+
     metrics_data = [
         ["Statistic", "Value", "Interpretation"],
         ["Mean |A_alpha|",        f"{A:.4f}",       asymmetry_interpretation(A)],
+        ["|A_alpha| 95% CI",      ci_str,           "Bootstrap CI (see statistics.py)"],
         ["chi2 (uniform 10%)",    f"{c_u:.1f}",     f"dof = {int(dof)}  {significance_label(p_u)}"],
         ["chi2 (weighted)",       f"{c_w:.1f}",     f"dof = {int(dof)}  {significance_label(p_w)}"],
         ["p-value (uniform)",     f"{p_u:.4e}",     ""],
-        ["p-value (weighted)",    f"{p_w:.4e}",     "Preferred for thesis"],
+        ["p-value (weighted)",    f"{p_w:.4e}",     "Nominal — assumes all grid points independent"],
+        ["dof (effective)",       f"{int(dof_eff)}", f"autocorrelation length = {autocorr:.1f} grid pts"],
+        ["p-value (effective dof)", f"{p_w_eff:.4e}", f"{significance_label(p_w_eff)}  — preferred for thesis"],
         ["chi2 ratio (w/u)",      f"{ratio:.3f}",   "< 1 means weighted is more conservative"],
         ["Mean sigma_matter",     f"{sm:.1f}%",     "Per-point uncertainty from curve curvature"],
         ["Mean sigma_antimatter", f"{sa:.1f}%",     "Per-point uncertainty from curve curvature"],
