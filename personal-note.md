@@ -1,0 +1,2 @@
+# Person reading and notes
+Gram-Schmidt process is a mathematical algorithm used to take a set of vectors and transform them into an orthogonal or orthonormal set. It is a way of finding a set of two or more vectors that are perpendicular to each other.
