@@ -37,9 +37,20 @@ export interface AnalysisPair {
   chi2Weighted: number;     // χ² with per-point curvature weights
   chi2Uniform: number;      // χ² with uniform 10% uncertainty
   chi2Ratio: number;        // chi2Weighted / chi2Uniform — <1 means weighted is more conservative
-  pval: number;             // p-value (weighted) — preferred for thesis
+  pval: number;             // p-value (weighted), nominal — assumes all 300 grid points are
+                             // independent degrees of freedom, which they are not (they're
+                             // interpolated from far fewer real measurements). Use pvalEffective
+                             // for the number actually worth citing.
   pvalUniform: number;      // p-value (uniform)
   dof: number;
+
+  // Autocorrelation-corrected significance (see statistics.py: effective_dof).
+  // Optional because older server payloads may not include them.
+  dofEffective?: number;     // effective dof from the residual autocorrelation length
+  pvalEffective?: number;    // p-value against dofEffective — preferred for thesis
+  autocorrLength?: number;   // autocorrelation length, in grid points
+  aalphaCiLow?: number;      // 95% bootstrap CI lower bound on mean |Aα|
+  aalphaCiHigh?: number;     // 95% bootstrap CI upper bound on mean |Aα|
 
   // Uncertainty estimates
   sigmaM: number;           // mean σ_matter (%)

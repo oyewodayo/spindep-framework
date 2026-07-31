@@ -109,13 +109,38 @@ export const PairDetail: React.FC<PairDetailProps> = ({ pair, onClose }) => {
                 <td style={{ color: pvalColor(pair.pvalUniform ?? pair.pval) }}>
                   {pair.pvalUniform != null ? formatPval(pair.pvalUniform) : formatPval(pair.pval)}
                 </td>
-                <td style={{ color: T.textDim }}></td>
+                <td style={{ color: T.textDim }}>Assumes flat 10% uncertainty at every point</td>
               </tr>
               <tr>
                 <td style={{ color: T.textDim }}>p-value (weighted)</td>
                 <td style={{ color: pvalColor(pair.pval) }}>{formatPval(pair.pval)}</td>
-                <td style={{ color: T.teal, fontSize: 11 }}>⭐ Preferred for thesis</td>
+                <td style={{ color: T.textDim }}>
+                  Nominal — assumes all {pair.dof} grid points are independent dof
+                </td>
               </tr>
+              {pair.dofEffective != null && (
+                <tr>
+                  <td style={{ color: T.textDim }}>dof (effective)</td>
+                  <td>{pair.dofEffective}</td>
+                  <td style={{ color: T.textDim }}>
+                    Autocorrelation length ≈ {pair.autocorrLength?.toFixed(1) ?? "—"} grid points
+                  </td>
+                </tr>
+              )}
+              {pair.pvalEffective != null && (
+                <tr>
+                  <td style={{ color: T.textDim }}>p-value (effective dof)</td>
+                  <td style={{ color: pvalColor(pair.pvalEffective) }}>{formatPval(pair.pvalEffective)}</td>
+                  <td style={{ color: T.teal, fontSize: 11 }}>Preferred for thesis</td>
+                </tr>
+              )}
+              {(pair.aalphaCiLow != null && pair.aalphaCiHigh != null) && (
+                <tr>
+                  <td style={{ color: T.textDim }}>|A_α| 95% CI</td>
+                  <td>[{pair.aalphaCiLow.toFixed(4)}, {pair.aalphaCiHigh.toFixed(4)}]</td>
+                  <td style={{ color: T.textDim }}>Bootstrap CI on mean |A_α|</td>
+                </tr>
+              )}
               <tr>
                 <td style={{ color: T.textDim }}>χ² ratio (w/u)</td>
                 <td style={{ color: pair.chi2Ratio < 1 ? T.teal : T.amber }}>

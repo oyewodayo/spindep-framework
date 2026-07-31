@@ -85,8 +85,22 @@ export function normalisePair(raw: any): AnalysisPair {
   const pvalW = raw.pval_weighted ?? raw.pval ?? raw.p_value ?? 0;
   const pvalU = raw.pval_uniform  ?? raw.pvalUniform ?? pvalW;
 
-  const mDs = basename(raw.matter_dataset     ?? raw.matterDataset     ?? "unknown");
-  const aDs = basename(raw.antimatter_dataset ?? raw.antimatterDataset ?? "unknown");
+  // dof_effective / pval_weighted_eff etc. come from the autocorrelation-length
+  // correction in statistics.py — the 300 interpolated grid points per pair are
+  // not independent, so treating them as 300 dof overstates significance. These
+  // are the numbers actually worth citing; see reporting.py for the equivalent
+  // PDF-report fix.
+  const dofEff  = raw.dof_effective       ?? raw.dofEffective       ?? undefined;
+  const pvalEff = raw.pval_weighted_eff   ?? raw.pvalEffective      ?? undefined;
+  const autocorr= raw.autocorr_length     ?? raw.autocorrLength     ?? undefined;
+  const ciLow   = raw.aalpha_ci_low       ?? raw.aalphaCiLow        ?? undefined;
+  const ciHigh  = raw.aalpha_ci_high      ?? raw.aalphaCiHigh       ?? undefined;
+
+  // experiment_m/experiment_a is what pipeline.py actually emits (the source
+  // citation key, e.g. "Fadeev2022"); matter_dataset/matterDataset are kept as
+  // fallbacks in case an older or different server payload shape is in use.
+  const mDs = basename(raw.matter_dataset     ?? raw.matterDataset     ?? raw.experiment_m ?? "unknown");
+  const aDs = basename(raw.antimatter_dataset ?? raw.antimatterDataset ?? raw.experiment_a ?? "unknown");
 
   const iClass = raw.interaction_class ?? raw.interactionClass
     ?? raw.sector_class ?? inferInteractionClass(raw.sec_m ?? raw.secM ?? "");
@@ -109,6 +123,11 @@ export function normalisePair(raw: any): AnalysisPair {
     pval:             pvalW,
     pvalUniform:      pvalU,
     dof:              raw.dof             ?? 0,
+    dofEffective:     dofEff,
+    pvalEffective:    pvalEff,
+    autocorrLength:   autocorr,
+    aalphaCiLow:      ciLow,
+    aalphaCiHigh:     ciHigh,
     sigmaM:           raw.sigma_matter     ?? raw.sigmaM   ?? raw.mean_sigma_matter     ?? 0,
     sigmaA:           raw.sigma_antimatter ?? raw.sigmaA   ?? raw.mean_sigma_antimatter ?? 0,
     lambdaMin:        raw.lambda_min      ?? raw.lambdaMin ?? 0,
@@ -128,7 +147,7 @@ export function normaliseResults(raw: any): PipelineResults {
       completed_at:  raw.meta?.completed_at ?? raw.completed_at ?? new Date().toISOString(),
       n_pairs:       raw.meta?.n_pairs      ?? pairs.length,
       n_significant: raw.meta?.n_significant
-        ?? pairs.filter((p: AnalysisPair) => p.pval < 0.05).length,
+        ?? pairs.filter((p: AnalysisPair) => (p.pvalEffective ?? p.pval) < 0.05).length,
     },
   };
 }
