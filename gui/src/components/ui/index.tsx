@@ -1,4 +1,4 @@
-// ─── Barrel export for all UI primitives ──────────────────────────────────────
+// Barrel export for all UI primitives
 // Importing from "../ui" will resolve all of these correctly.
 
 export { Icon } from "./Icon";

@@ -20,8 +20,6 @@ import { NullTestSection }        from "./components/sections/NullTestSection";
 
 import type { NavSection, PipelineMode, AnalysisPair } from "./types";
 
-// ─── CSS injection ────────────────────────────────────────────────────────────
-
 function useGlobalStyles() {
    useEffect(() => {
         const el = document.createElement("style");
@@ -35,8 +33,6 @@ function useGlobalStyles() {
         };
     }, []);
 }
-
-// ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
   useGlobalStyles();
@@ -64,7 +60,6 @@ export default function App() {
 
   const significantPairs = activePairs.filter(p => p.pval < SIG.STANDARD).length;
 
-  // ── Pipeline start ──────────────────────────────────────────────────────────
   const handleStartRun = useCallback(
     async (m: PipelineMode) => {
       setPage("pipeline");
@@ -73,7 +68,7 @@ export default function App() {
     [startRun]
   );
 
-  // ── Pipeline complete: save to history, activate results ────────────────────
+  // saves the run to history and switches to the results page once it's done
   const handlePipelineComplete = useCallback(async () => {
     const result = await handleComplete();
     if (result && jobId) {
@@ -83,13 +78,11 @@ export default function App() {
     }
   }, [handleComplete, jobId, mode, addRun]);
 
-  // ── History restore ─────────────────────────────────────────────────────────
   const handleRestore = useCallback((pairs: AnalysisPair[]) => {
     setActivePairs(pairs);
     setPage("batch");
   }, []);
 
-  // ── Page renderer ───────────────────────────────────────────────────────────
   const renderPage = () => {
     switch (page) {
       case "ingest":

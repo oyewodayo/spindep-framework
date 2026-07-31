@@ -1,5 +1,3 @@
-// ─── Domain Types ─────────────────────────────────────────────────────────────
-
 export type CouplingType = "gAgA" | "gsgs" | "gVgV" | "gpgp" | "gpgs" | string;
 export type PotentialType = "Yukawa" | "power-law" | string;
 export type PipelineMode = "full" | "validate" | "gaps" | "atlas";
@@ -87,8 +85,6 @@ export interface ApiStatus {
   datasets_path: string;
 }
 
-// ─── Dataset Provenance ───────────────────────────────────────────────────────
-
 export type ConversionFlag = "none" | "pre-converted" | "unknown";
 
 export interface DatasetRecord {
@@ -112,8 +108,6 @@ export interface DatasetRecord {
   isMatter: boolean;
 }
 
-// ─── Systematic Flags ─────────────────────────────────────────────────────────
-
 export type SystematicSeverity = "ok" | "warn" | "critical";
 
 export interface SystematicFlag {
@@ -123,8 +117,6 @@ export interface SystematicFlag {
   message: string;
   detail: string;
 }
-
-// ─── Coverage / Overlap ───────────────────────────────────────────────────────
 
 export interface LambdaOverlapBand {
   logLamStart: number;
@@ -165,8 +157,6 @@ export interface TooltipPayloadItem {
   color?: string;
 }
 
-// ─── Run History ──────────────────────────────────────────────────────────────
-
 export interface RunSummary {
   nPairs:       number;
   nSignificant: number;
@@ -185,8 +175,6 @@ export interface RunRecord {
   pairs:       AnalysisPair[];
   log:         string[];
 }
-
-// ─── Null Test / Injection Framework ─────────────────────────────────────────
 
 export type NullTestStatus = "idle" | "configuring" | "running" | "done" | "error";
 

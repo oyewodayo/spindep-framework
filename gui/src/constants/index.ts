@@ -1,4 +1,4 @@
-// ─── Design Tokens ────────────────────────────────────────────────────────────
+// Design Tokens
 
 export const T = {
   // Backgrounds
@@ -52,13 +52,13 @@ export const T = {
 
 export type DesignToken = typeof T;
 
-// ─── API Constants ─────────────────────────────────────────────────────────────
+// API Constants
 
 export const API_BASE_URL = "http://localhost:8001";
 export const API_POLL_INTERVAL_MS = 1_000;
 export const API_HEALTH_INTERVAL_MS = 5_000;
 
-// ─── Pipeline Constants ────────────────────────────────────────────────────────
+// Pipeline Constants
 
 export const PIPELINE_STEPS: Record<string, string[]> = {
   full:     ["Discovering datasets", "Unit audit & conversion", "Matching matter–antimatter pairs", "Computing χ² & asymmetry", "Gap analysis", "Constraint atlas", "Generating report"],
@@ -67,7 +67,7 @@ export const PIPELINE_STEPS: Record<string, string[]> = {
   atlas:    ["Discovering datasets", "Constraint atlas plots"],
 };
 
-// ─── Navigation ───────────────────────────────────────────────────────────────
+// Navigation
 
 import type { NavSection } from "../types";
 
@@ -95,7 +95,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const NAV_GROUPS = ["Data", "Analysis", "Validation", "Output"] as const;
 
-// ─── Significance Thresholds ───────────────────────────────────────────────────
+// Significance Thresholds
 
 export const SIG = {
   HIGHLY: 0.001,

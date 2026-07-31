@@ -4,8 +4,6 @@ import { API_HEALTH_INTERVAL_MS, API_POLL_INTERVAL_MS } from "../constants";
 import { estimateProgress } from "../utils";
 import type { AnalysisPair, JobStatus, PipelineMode } from "../types";
 
-// ─── useApiHealth ──────────────────────────────────────────────────────────────
-
 export function useApiHealth(): boolean {
   const [online, setOnline] = useState(false);
 
@@ -18,8 +16,6 @@ export function useApiHealth(): boolean {
 
   return online;
 }
-
-// ─── usePipelineJob ────────────────────────────────────────────────────────────
 
 interface UsePipelineJobReturn {
   log: string[];
@@ -73,8 +69,6 @@ export function usePipelineJob(
   return { log, progress, status };
 }
 
-// ─── usePipeline ───────────────────────────────────────────────────────────────
-
 interface UsePipelineReturn {
   jobId: string | null;
   mode: PipelineMode;
@@ -124,8 +118,6 @@ export function usePipeline(): UsePipelineReturn {
   return { jobId, mode, pairs, resultsReady, lastLog, startRun, handleComplete };
 }
 
-// ─── useSort ──────────────────────────────────────────────────────────────────
-
 export function useSort<T>(defaultKey: keyof T, defaultDir: "asc" | "desc" = "asc") {
   const [sort, setSort] = useState<{ key: keyof T; direction: "asc" | "desc" }>({
     key: defaultKey,
@@ -143,8 +135,6 @@ export function useSort<T>(defaultKey: keyof T, defaultDir: "asc" | "desc" = "as
   return { sort, toggleSort };
 }
 
-// ─── useCopyToClipboard ────────────────────────────────────────────────────────
-
 export function useCopyToClipboard(resetDelay = 1_600) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -157,10 +147,8 @@ export function useCopyToClipboard(resetDelay = 1_600) {
   return { copiedKey, copy };
 }
 
-// ─── useRunHistory ────────────────────────────────────────────────────────────
-// Persists run records to localStorage so the UI is stateful across refreshes.
-// Each record stores the full AnalysisPair[] so results can be restored.
-
+// stores run records in localStorage (with the full pairs array) so results
+// survive a refresh and can be restored later
 import { buildConfigHash } from "../api/client";
 import type { RunRecord, RunSummary, NullTestConfig, NullTestResult, NullTestStatus, NullTestBattery } from "../types";
 
@@ -267,9 +255,7 @@ export function useRunHistory(): UseRunHistoryReturn {
   return { history, activeRunId, addRun, restoreRun, deleteRun, renameRun, clearHistory };
 }
 
-// ─── useNullTest ──────────────────────────────────────────────────────────────
-// Manages one null-injection job: submit → poll → result.
-
+// runs one null-injection job: submit -> poll -> result
 interface UseNullTestReturn {
   status:   NullTestStatus;
   log:      string[];
@@ -320,9 +306,7 @@ export function useNullTest(): UseNullTestReturn {
   return { status, log, progress, result, run, reset };
 }
 
-// ─── useNullTestBattery ────────────────────────────────────────────────────────
-// Runs a battery of null tests sequentially across multiple injected Aα values.
-
+// runs a battery of null tests sequentially across multiple injected Aα values
 interface UseNullTestBatteryReturn {
   battery:  NullTestBattery | null;
   running:  boolean;

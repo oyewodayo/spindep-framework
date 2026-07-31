@@ -9,7 +9,7 @@ interface ProvenanceSectionProps {
   pairs: AnalysisPair[];
 }
 
-// ─── Derive dataset registry from pipeline results ─────────────────────────────
+// Derive dataset registry from pipeline results
 // The pipeline returns pairs, not a dataset table. We reconstruct the registry
 // from pair metadata so this section stays in sync with actual results.
 
@@ -95,7 +95,7 @@ function buildRegistry(pairs: AnalysisPair[]): DatasetRecord[] {
   return [...seen.values()].sort((a, b) => a.year - b.year || a.name.localeCompare(b.name));
 }
 
-// ─── Heuristics to extract author/year/journal from dataset name ───────────────
+// Heuristics to extract author/year/journal from dataset name
 // These are best-effort; users should add a provenance JSON file on the server
 // to override with real citations.
 
@@ -124,7 +124,7 @@ function journalHint(name: string): string {
   return MAP[name] ?? "—";
 }
 
-// ─── Conversion flag badge ────────────────────────────────────────────────────
+// Conversion flag badge
 
 function ConvFlag({ flag, unit }: { flag: ConversionFlag; unit: string }) {
   const cfg = {
@@ -149,7 +149,7 @@ function ConvFlag({ flag, unit }: { flag: ConversionFlag; unit: string }) {
   );
 }
 
-// ─── λ range mini-bar ─────────────────────────────────────────────────────────
+// λ range mini-bar
 
 function LambdaBar({ min, max, globalMin, globalMax }: {
   min: number; max: number; globalMin: number; globalMax: number;
@@ -174,7 +174,7 @@ function LambdaBar({ min, max, globalMin, globalMax }: {
   );
 }
 
-// ─── Participation map ────────────────────────────────────────────────────────
+// Participation map
 
 function ParticipationMap({ record, pairs }: { record: DatasetRecord; pairs: AnalysisPair[] }) {
   const relevant = pairs.filter(p =>
@@ -208,7 +208,7 @@ function ParticipationMap({ record, pairs }: { record: DatasetRecord; pairs: Ana
   );
 }
 
-// ─── Detail drawer ────────────────────────────────────────────────────────────
+// Detail drawer
 
 function DatasetDrawer({ record, pairs, onClose }: {
   record: DatasetRecord;
@@ -316,7 +316,7 @@ function DatasetDrawer({ record, pairs, onClose }: {
   );
 }
 
-// ─── Main section ─────────────────────────────────────────────────────────────
+// Main section
 
 export const ProvenanceSection: React.FC<ProvenanceSectionProps> = ({ pairs }) => {
   const baseRegistry = useMemo(() => buildRegistry(pairs), [pairs]);

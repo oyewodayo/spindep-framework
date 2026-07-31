@@ -16,7 +16,7 @@ interface InterpretationSectionProps {
   pairs: AnalysisPair[];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 const SEV_COLOR: Record<SystematicSeverity, string> = {
   ok:       T.teal,
@@ -51,7 +51,7 @@ function SeverityBadge({ sev }: { sev: SystematicSeverity }) {
   );
 }
 
-// ─── Sub-panels ───────────────────────────────────────────────────────────────
+// Sub-panels
 
 /** |Aα| distribution bar chart with null-hypothesis reference */
 function AsymmetryDistribution({ pairs }: { pairs: AnalysisPair[] }) {
@@ -477,7 +477,7 @@ function NarrativeInterpretation({ pairs, flags }: { pairs: AnalysisPair[]; flag
   );
 }
 
-// ─── Main Section ─────────────────────────────────────────────────────────────
+// Main Section
 
 export const InterpretationSection: React.FC<InterpretationSectionProps> = ({ pairs }) => {
   const flags = useMemo(() => detectSystematics(pairs), [pairs]);

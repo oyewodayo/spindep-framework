@@ -13,7 +13,7 @@ interface HistorySectionProps {
   onClear:     () => void;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 function modeTag(mode: string) {
   const cfg: Record<string, { cls: string; label: string }> = {
@@ -46,7 +46,7 @@ function formatRelative(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-// ─── Config diff between two runs ─────────────────────────────────────────────
+// Config diff between two runs
 
 interface DiffResult {
   addedDatasets:   string[];
@@ -74,7 +74,7 @@ function diffRuns(a: RunRecord, b: RunRecord): DiffResult {
   };
 }
 
-// ─── Run detail drawer ────────────────────────────────────────────────────────
+// Run detail drawer
 
 function RunDrawer({
   record, isActive, onRestore, onClose,
@@ -252,7 +252,7 @@ function RunDrawer({
   );
 }
 
-// ─── Run diff panel ───────────────────────────────────────────────────────────
+// Run diff panel
 
 function DiffPanel({ a, b }: { a: RunRecord; b: RunRecord }) {
   const diff = diffRuns(a, b);
@@ -327,7 +327,7 @@ function DiffPanel({ a, b }: { a: RunRecord; b: RunRecord }) {
   );
 }
 
-// ─── Main section ─────────────────────────────────────────────────────────────
+// Main section
 
 export const HistorySection: React.FC<HistorySectionProps> = ({
   history, activeRunId, onRestore, onDelete, onRename, onClear,

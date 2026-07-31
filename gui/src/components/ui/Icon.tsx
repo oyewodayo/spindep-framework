@@ -1,6 +1,6 @@
 import React from "react";
 
-// ─── Icon Registry ─────────────────────────────────────────────────────────────
+// Icon Registry
 
 type IconName =
   | "folder" | "file"   | "upload"  | "play"     | "chart"    | "grid"

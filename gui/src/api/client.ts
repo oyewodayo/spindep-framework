@@ -14,7 +14,7 @@ import type {
   NullTestStatus,
 } from "../types";
 
-// ─── Generic fetcher ──────────────────────────────────────────────────────────
+// Generic fetcher
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, init);
@@ -24,7 +24,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ─── File downloads ───────────────────────────────────────────────────────────
+// File downloads
 
 function _saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -51,7 +51,7 @@ async function _downloadGet(path: string, fallbackName: string): Promise<void> {
   _saveBlob(await res.blob(), _filenameFromResponse(res, fallbackName));
 }
 
-// ─── Field normalisation: DataPoint ──────────────────────────────────────────
+// Field normalisation: DataPoint
 
 type RawDataPoint = {
   log_lam?: number; logLam?: number;
@@ -69,10 +69,7 @@ function normalisePoint(raw: RawDataPoint): DataPoint {
   };
 }
 
-
-
-
-// ─── Field normalisation: AnalysisPair ────────────────────────────────────────
+// Field normalisation: AnalysisPair
 //
 // The Python server serialises in snake_case. We normalise here — one place,
 // zero leakage into components. Safe defaults ensure nothing crashes against
@@ -147,7 +144,7 @@ function inferInteractionClass(sec: string): string {
   return "unknown";
 }
 
-// ─── Field normalisation: Provenance ─────────────────────────────────────────
+// Field normalisation: Provenance
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseProvenanceRecord(raw: any): Partial<DatasetRecord> {
@@ -162,7 +159,7 @@ function normaliseProvenanceRecord(raw: any): Partial<DatasetRecord> {
   };
 }
 
-// ─── Field normalisation: Null test ──────────────────────────────────────────
+// Field normalisation: Null test
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseNullTestPoint(raw: any): NullTestPoint {
@@ -177,8 +174,6 @@ function normaliseNullTestPoint(raw: any): NullTestPoint {
       ?? Math.abs(recovered - injected) < 0.1,
   };
 }
-
-
 
 function normaliseNullTestResult(config: NullTestConfig, raw: any): NullTestResult {
   const points: NullTestPoint[] = (raw.points ?? []).map(normaliseNullTestPoint);
@@ -207,7 +202,7 @@ function normaliseNullTestResult(config: NullTestConfig, raw: any): NullTestResu
       : Math.abs(meanRec - meanInj) < 0.05,
   };
 }
-// ─── Config hash ──────────────────────────────────────────────────────────────
+// Config hash
 //
 // Deterministic fingerprint of a run: mode + sorted pair IDs.
 // Used by the history feature to flag runs that used identical configurations.
@@ -232,10 +227,10 @@ export interface UploadSuggestion {
   suggested_dir:     string;
 }
 
-// ─── Public API client ────────────────────────────────────────────────────────
+// Public API client
 
 export const apiClient = {
-  // ── Pipeline ────────────────────────────────────────────────────────────────
+  // Pipeline
 
   /** Submit a new pipeline job → { job_id }. */
   run(mode: PipelineMode = "full"): Promise<{ job_id: string }> {
@@ -282,10 +277,9 @@ export const apiClient = {
     return res.json();
   },
 
-
   
 
-  // ── Status / tree ────────────────────────────────────────────────────────────
+  // Status / tree
 
   /** Lightweight health check — returns null on any network failure. */
   async getStatus(): Promise<ApiStatus | null> {
@@ -301,7 +295,7 @@ export const apiClient = {
     return request<FileTreeNode>("/api/tree");
   },
 
-  // ── Provenance ───────────────────────────────────────────────────────────────
+  // Provenance
 
   /**
    * Optional citation enrichment — GET /api/provenance.
@@ -323,7 +317,7 @@ export const apiClient = {
     }
   },
 
-  // ── Null test ────────────────────────────────────────────────────────────────
+  // Null test
 
   /**
    * Run a null-injection test.
@@ -348,12 +342,9 @@ export const apiClient = {
     return normaliseNullTestResult(cfg, raw);
   },
 
+  // Dataset upload
 
-  // ── Dataset upload ──────────────────────────────────────────────────────────
-
-
-
-  // ── Folder management ──────────────────────────────────────────────────────
+  // Folder management
 
   async createFolder(path: string): Promise<{ created: string }> {
     const res = await fetch(`${API_BASE_URL}/api/datasets/folder`, {
@@ -374,7 +365,6 @@ export const apiClient = {
     if (!res.ok) throw new Error(`Rename failed: ${res.statusText}`);
     return res.json();
   },
-
 
   /**
    * Delete a single CSV from DATA_ROOT by filename.
@@ -413,7 +403,7 @@ export const apiClient = {
     return res.json();
   },
 
-  // ── Export ──────────────────────────────────────────────────────────────────
+  // Export
 
   downloadReport():         Promise<void> { return _downloadGet("/api/export/report", "asymmetry_report.pdf"); },
   downloadSummaryCsv():     Promise<void> { return _downloadGet("/api/export/summary-csv", "asymmetry_summary.csv"); },

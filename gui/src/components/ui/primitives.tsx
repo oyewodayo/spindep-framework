@@ -3,7 +3,7 @@ import { T } from "../../constants";
 import { Icon } from "./Icon";
 import type { TooltipPayloadItem } from "../../types";
 
-// ─── Stat ──────────────────────────────────────────────────────────────────────
+// Stat
 
 interface StatProps {
   label: string;
@@ -28,7 +28,7 @@ export const Stat: React.FC<StatProps> = ({ label, value, unit, color, sub }) =>
   </div>
 );
 
-// ─── PanelHeader ──────────────────────────────────────────────────────────────
+// PanelHeader
 
 interface PanelHeaderProps {
   title: string;
@@ -54,7 +54,7 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({ title, icon, right, su
   </div>
 );
 
-// ─── ChartTooltip ─────────────────────────────────────────────────────────────
+// ChartTooltip
 
 interface ChartTooltipProps {
   active?: boolean;
@@ -90,7 +90,7 @@ export const ChartTooltip: React.FC<ChartTooltipProps> = ({ active, payload, lab
   );
 };
 
-// ─── SigTag ───────────────────────────────────────────────────────────────────
+// SigTag
 
 export const SigTag: React.FC<{ pval: number }> = ({ pval }) => {
   if (pval < 0.001) return <span className="tag tag-red">✦✦✦ p &lt; 0.001</span>;
@@ -98,7 +98,7 @@ export const SigTag: React.FC<{ pval: number }> = ({ pval }) => {
   return <span className="tag tag-teal">ns</span>;
 };
 
-// ─── ApiBanner ────────────────────────────────────────────────────────────────
+// ApiBanner
 
 export const ApiBanner: React.FC<{ online: boolean }> = ({ online }) => (
   <div className={`api-banner ${online ? "ok" : "err"}`}>
@@ -109,7 +109,7 @@ export const ApiBanner: React.FC<{ online: boolean }> = ({ online }) => (
   </div>
 );
 
-// ─── ProgressBar ──────────────────────────────────────────────────────────────
+// ProgressBar
 
 export const ProgressBar: React.FC<{ value: number; height?: number }> = ({
   value,
@@ -120,7 +120,7 @@ export const ProgressBar: React.FC<{ value: number; height?: number }> = ({
   </div>
 );
 
-// ─── SearchBar ────────────────────────────────────────────────────────────────
+// SearchBar
 
 interface SearchBarProps {
   value: string;

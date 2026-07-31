@@ -1,7 +1,7 @@
 import { T, SIG } from "../constants";
 import type { AnalysisPair, SystematicFlag } from "../types";
 
-// ─── Basic formatters ─────────────────────────────────────────────────────────
+// Basic formatters
 
 export function pvalColor(p: number): string {
   if (p < SIG.HIGHLY)   return T.red;
@@ -30,7 +30,7 @@ export function safeId(s: string): string {
   return s.replace(/[^a-z0-9]/gi, "_");
 }
 
-// ─── Statistical analysis ─────────────────────────────────────────────────────
+// Statistical analysis
 
 /** χ²/dof — expected ~1 for pure statistical scatter. */
 export function reducedChi2(chi2: number, dof: number): number {
@@ -163,7 +163,7 @@ export function lambdaOverlapFraction(a: AnalysisPair, b: AnalysisPair): number 
   return total > 0 ? (oMax - oMin) / total : 0;
 }
 
-// ─── Data helpers ─────────────────────────────────────────────────────────────
+// Data helpers
 
 export function makeFallbackTree() {
   const COUPLINGS = ["gAgA", "gsgs", "gVgV", "gpgp", "gpgs"];
@@ -182,7 +182,7 @@ export function estimateProgress(logLength: number): number {
   return Math.min(95, logLength * 4);
 }
 
-// ─── LaTeX generation ─────────────────────────────────────────────────────────
+// LaTeX generation
 
 export function buildLatexTable(pairs: AnalysisPair[]): string {
   const sig = pairs.filter(p => p.pval < SIG.STANDARD);
@@ -211,7 +211,7 @@ ${sig.slice(0, 12).map(p =>
 \\end{table}`;
 }
 
-// ─── CSV generation ───────────────────────────────────────────────────────────
+// CSV generation
 
 function csvField(v: string | number): string {
   const s = String(v);
@@ -234,7 +234,7 @@ export function buildCsvTable(pairs: AnalysisPair[]): string {
   return [header, ...rows].map(r => r.map(csvField).join(",")).join("\n");
 }
 
-// ─── Client-side file download ─────────────────────────────────────────────────
+// Client-side file download
 
 export function downloadTextFile(text: string, filename: string): void {
   const blob = new Blob([text], { type: "text/plain" });
