@@ -101,7 +101,7 @@ export default function App() {
       case "atlas":
         return <AtlasSection pairs={activePairs} />;
       case "gaps":
-        return <GapAnalysisSection pairs={activePairs} />;
+        return <GapAnalysisSection />;
       case "history":
         return (
           <HistorySection

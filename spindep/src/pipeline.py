@@ -84,12 +84,18 @@ def run_pipeline(dataset_root, results_root, json_out=None):
     # --------------------------------------------------------
     # BUILD MATCHED PAIRS
     # --------------------------------------------------------
+    print("\n" + "=" * 60)
+    print("MATCHING PAIRS")
+    print("=" * 60)
     pairs = build_pairs(datasets)
     print(f"\nFound {len(pairs)} valid pairs")
 
     # --------------------------------------------------------
     # ANALYSIS LOOP
     # --------------------------------------------------------
+    print("\n" + "=" * 60)
+    print("COMPUTING CHI2 & ASYMMETRY")
+    print("=" * 60)
     summary_rows = []
     gui_pairs    = []
 
@@ -268,6 +274,9 @@ def run_pipeline(dataset_root, results_root, json_out=None):
     # --------------------------------------------------------
     # GENERATE REPORT
     # --------------------------------------------------------
+    print("\n" + "=" * 60)
+    print("GENERATING REPORT")
+    print("=" * 60)
     if summary_rows:
         timestamp   = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_path = reports_dir / f"asymmetry_report_{timestamp}.pdf"

@@ -25,6 +25,21 @@ jobs = {}
 # Values are (df_matter, df_antimatter) — ready for run_null_test().
 _PAIR_DATASET_CACHE: dict[str, tuple] = {}
 
+# The section-header lines run_pipeline() prints (src/pipeline.py), in the
+# order they actually execute. Matching against these — not a fake
+# "progress = log length" estimate — is how the GUI's step-by-step progress
+# is computed. Keep this in sync with pipeline.py's print("...") headers;
+# if a header's text changes there, update it here too.
+PIPELINE_PHASE_MARKERS = [
+    "DISCOVERING DATASETS",
+    "UNIT AUDIT",
+    "GAP ANALYSIS",
+    "CONSTRAINT ATLAS",
+    "MATCHING PAIRS",
+    "COMPUTING CHI2 & ASYMMETRY",
+    "GENERATING REPORT",
+]
+
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 DATA_ROOT    = _PROJECT_ROOT / "spindep" / "datasets" / "normalized"
@@ -159,7 +174,10 @@ def get_tree():
 @app.post("/api/run")
 async def run(background_tasks: BackgroundTasks, mode: str = "full"):
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {"status": "running", "log": [], "results": None}
+    jobs[job_id] = {
+        "status": "running", "log": [], "results": None,
+        "current_step": 0, "total_steps": len(PIPELINE_PHASE_MARKERS),
+    }
     background_tasks.add_task(_run_pipeline, job_id, mode)
     return {"job_id": job_id}
 
@@ -167,7 +185,12 @@ async def run(background_tasks: BackgroundTasks, mode: str = "full"):
 @app.get("/api/job/{job_id}")
 def get_job(job_id: str):
     j = jobs.get(job_id, {"status": "not_found"})
-    return {"status": j["status"], "log": j["log"]}
+    return {
+        "status": j["status"],
+        "log": j["log"],
+        "current_step": j.get("current_step", 0),
+        "total_steps": j.get("total_steps", len(PIPELINE_PHASE_MARKERS)),
+    }
 
 
 @app.get("/api/results/{job_id}")
@@ -180,6 +203,54 @@ def get_results(job_id: str):
 
 # ─── Pipeline runner ──────────────────────────────────────────────────────────
 
+import contextlib
+import threading
+
+# contextlib.redirect_stdout reassigns sys.stdout process-wide, not per-thread,
+# and run_pipeline() writes to shared files under RESULTS_ROOT regardless — so
+# two pipeline runs must never actually execute concurrently. This lock
+# serialises them; a second run simply waits its turn rather than racing.
+_pipeline_lock = threading.Lock()
+
+
+class _JobLogWriter:
+    """
+    redirect_stdout target: buffers partial writes into complete lines,
+    appends each line to jobs[job_id]["log"] as it's printed (not after the
+    whole pipeline returns), and advances jobs[job_id]["current_step"]
+    whenever a line matches one of PIPELINE_PHASE_MARKERS. This is what makes
+    the GUI's step-by-step progress real instead of a fake log-length guess.
+    """
+
+    def __init__(self, job_id: str):
+        self.job_id = job_id
+        self._buffer = ""
+
+    def write(self, s: str) -> int:
+        self._buffer += s
+        while "\n" in self._buffer:
+            line, self._buffer = self._buffer.split("\n", 1)
+            self._emit(line)
+        return len(s)
+
+    def flush(self) -> None:
+        pass
+
+    def _emit(self, line: str) -> None:
+        stripped = line.strip()
+        if not stripped:
+            return
+        job = jobs.get(self.job_id)
+        if job is None:
+            return
+        job["log"].append(stripped)
+        upper = stripped.upper()
+        for i, marker in enumerate(PIPELINE_PHASE_MARKERS):
+            if marker in upper:
+                job["current_step"] = i
+                break
+
+
 def _run_pipeline(job_id: str, mode: str):
     import traceback
     json_path = f"/tmp/spindep_{job_id}.json"
@@ -187,15 +258,18 @@ def _run_pipeline(job_id: str, mode: str):
         from src.pipeline import run_pipeline
 
         jobs[job_id]["log"].append("[..] Starting pipeline...")
-        run_pipeline(
-            dataset_root=str(DATA_ROOT),
-            results_root=str(RESULTS_ROOT),
-            json_out=json_path,
-        )
+        writer = _JobLogWriter(job_id)
+        with _pipeline_lock, contextlib.redirect_stdout(writer):
+            run_pipeline(
+                dataset_root=str(DATA_ROOT),
+                results_root=str(RESULTS_ROOT),
+                json_out=json_path,
+            )
         if Path(json_path).exists():
             with open(json_path) as f:
                 jobs[job_id]["results"] = json.load(f)
             jobs[job_id]["status"] = "done"
+            jobs[job_id]["current_step"] = len(PIPELINE_PHASE_MARKERS)
             jobs[job_id]["log"].append("[OK] Pipeline complete")
             # Warm cache so null tests are instant after a run
             _warm_dataset_cache()
@@ -303,6 +377,51 @@ def export_gap_analysis():
     if not gap_dir.exists() or not any(gap_dir.glob("*.png")):
         raise HTTPException(status_code=404, detail="No gap analysis figures found yet — run the pipeline first")
     return _attachment(_zip_dir_bytes(gap_dir), "gap_analysis_figures.zip", "application/zip")
+
+
+@app.get("/api/gap-matrix")
+def get_gap_matrix():
+    """
+    JSON form of gap_analysis.plot_pair_coverage_matrix's own counting logic —
+    same source data, same sort order, same "skip UNKNOWN potential" rule, so
+    this can never silently disagree with the matplotlib PNG it stands in for.
+    """
+    from src.parser import discover_datasets
+    from src.gap_analysis import (
+        SECTOR_LABELS, ANTIMATTER_SECTORS, pot_sort_key,
+    )
+    from collections import defaultdict
+
+    datasets = discover_datasets(DATA_ROOT)
+
+    counts = defaultdict(int)
+    potentials_seen, sectors_seen = set(), set()
+    for d in datasets:
+        if d.potential == "UNKNOWN":
+            continue
+        counts[(d.potential, d.sector)] += 1
+        potentials_seen.add(d.potential)
+        sectors_seen.add(d.sector)
+
+    # pot_sort_key alone only extracts the leading digit, so "V2" and "V2+3"
+    # tie and fall back to set-iteration order (not stable run to run). Break
+    # ties by preferring the plain potential ("V2") before the combined range
+    # ("V2+3") for a deterministic, reproducible column order.
+    potentials = sorted(potentials_seen, key=lambda p: (pot_sort_key(p), "+" in p, p))
+    sectors    = sorted(sectors_seen)
+
+    matrix = [[counts.get((pot, sec), 0) for pot in potentials] for sec in sectors]
+    max_value = max((v for row in matrix for v in row), default=0)
+
+    return {
+        "potentials":         potentials,
+        "sectors":            sectors,
+        "sector_labels":      {s: SECTOR_LABELS.get(s, s) for s in sectors},
+        "antimatter_sectors": sorted(s for s in sectors if s in ANTIMATTER_SECTORS),
+        "matrix":             matrix,
+        "max_value":          max_value,
+        "total_datasets":     sum(v for row in matrix for v in row),
+    }
 
 
 @app.get("/api/export/config")

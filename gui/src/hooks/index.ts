@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { apiClient } from "../api/client";
 import { API_HEALTH_INTERVAL_MS, API_POLL_INTERVAL_MS } from "../constants";
-import { estimateProgress } from "../utils";
 import type { AnalysisPair, JobStatus, PipelineMode } from "../types";
 
 export function useApiHealth(): boolean {
@@ -21,16 +20,20 @@ interface UsePipelineJobReturn {
   log: string[];
   progress: number;
   status: JobStatus;
+  currentStep: number;
+  totalSteps: number;
 }
 
 export function usePipelineJob(
   jobId: string | null,
   onComplete?: () => void
 ): UsePipelineJobReturn {
-  const [log, setLog]           = useState<string[]>([]);
-  const [progress, setProgress] = useState(0);
-  const [status, setStatus]     = useState<JobStatus>("queued");
-  const cancelRef               = useRef(false);
+  const [log, setLog]               = useState<string[]>([]);
+  const [progress, setProgress]     = useState(0);
+  const [status, setStatus]         = useState<JobStatus>("queued");
+  const [currentStep, setCurrentStep] = useState(0);
+  const [totalSteps, setTotalSteps]   = useState(1);
+  const cancelRef                   = useRef(false);
 
   useEffect(() => {
     if (!jobId) return;
@@ -42,10 +45,17 @@ export function usePipelineJob(
           const job = await apiClient.pollJob(jobId);
           if (cancelRef.current) break;
 
+          const total = job.total_steps ?? 1;
+          const step  = job.current_step ?? 0;
           setLog(job.log ?? []);
-          setProgress(estimateProgress(job.log?.length ?? 0));
+          setCurrentStep(step);
+          setTotalSteps(total);
+          // While running, real step-based progress (never 100 until actually
+          // done, so the bar doesn't lie ahead of the last completed phase).
+          setProgress(Math.min(99, Math.round((step / total) * 100)));
 
           if (job.status === "done") {
+            setCurrentStep(total);
             setProgress(100);
             setStatus("done");
             setTimeout(() => onComplete?.(), 600);
@@ -66,7 +76,7 @@ export function usePipelineJob(
     return () => { cancelRef.current = true; };
   }, [jobId, onComplete]);
 
-  return { log, progress, status };
+  return { log, progress, status, currentStep, totalSteps };
 }
 
 interface UsePipelineReturn {

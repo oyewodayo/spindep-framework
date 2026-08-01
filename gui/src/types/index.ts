@@ -70,6 +70,11 @@ export interface PipelineJob {
   log: string[];
   created_at: string;
   completed_at?: string;
+  /** Index into PIPELINE_STEPS[mode] of the phase currently executing,
+   *  advanced server-side by matching print() headers in pipeline.py —
+   *  not estimated from log length. */
+  current_step?: number;
+  total_steps?: number;
 }
 
 export interface PipelineResults {
@@ -160,6 +165,23 @@ export interface CoverageCell {
   coupling: CouplingType;
   potential: PotentialType;
   paired: number;
+}
+
+/**
+ * Raw-dataset coverage matrix — sector (row) x potential (column) counts,
+ * straight from the compiled dataset registry (not matched pairs). Mirrors
+ * gap_analysis.py's plot_pair_coverage_matrix() exactly: same counting rule
+ * (one classified dataset = one count, UNKNOWN-potential rows excluded),
+ * same sort order, same sector/antimatter labelling.
+ */
+export interface GapMatrix {
+  potentials: string[];              // column labels, e.g. "V1a", "V2+3"
+  sectors: string[];                 // row keys, e.g. "ee", "eebar"
+  sectorLabels: Record<string, string>; // display label per sector, e.g. "ee" -> "e-e"
+  antimatterSectors: string[];       // subset of `sectors` that are antimatter
+  matrix: number[][];                // matrix[rowIndex][colIndex] = dataset count
+  maxValue: number;
+  totalDatasets: number;
 }
 
 export interface TooltipPayloadItem {

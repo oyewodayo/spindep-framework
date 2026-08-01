@@ -12,6 +12,7 @@ import type {
   NullTestResult,
   NullTestPoint,
   NullTestStatus,
+  GapMatrix,
 } from "../types";
 
 // Generic fetcher
@@ -152,6 +153,19 @@ export function normaliseResults(raw: any): PipelineResults {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normaliseGapMatrix(raw: any): GapMatrix {
+  return {
+    potentials:        raw.potentials         ?? [],
+    sectors:            raw.sectors            ?? [],
+    sectorLabels:       raw.sector_labels      ?? raw.sectorLabels      ?? {},
+    antimatterSectors:  raw.antimatter_sectors ?? raw.antimatterSectors ?? [],
+    matrix:             raw.matrix             ?? [],
+    maxValue:           raw.max_value          ?? raw.maxValue          ?? 0,
+    totalDatasets:      raw.total_datasets     ?? raw.totalDatasets     ?? 0,
+  };
+}
+
 function basename(s: string): string {
   return s.replace(/\\/g, "/").split("/").pop()?.replace(/\.[^.]+$/, "") ?? s;
 }
@@ -270,6 +284,17 @@ export const apiClient = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw = await request<any>(`/api/results/${jobId}`);
     return normaliseResults(raw);
+  },
+
+  /**
+   * Sector x potential coverage matrix, built from the full compiled dataset
+   * registry (not matched pairs) — same source and counting rule as the
+   * matplotlib pair_coverage_matrix.png.
+   */
+  async getGapMatrix(): Promise<GapMatrix> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = await request<any>(`/api/gap-matrix`);
+    return normaliseGapMatrix(raw);
   },
 
   async uploadDatasets(

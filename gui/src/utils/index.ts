@@ -178,10 +178,6 @@ export function makeFallbackTree() {
   };
 }
 
-export function estimateProgress(logLength: number): number {
-  return Math.min(95, logLength * 4);
-}
-
 // LaTeX generation
 
 export function buildLatexTable(pairs: AnalysisPair[]): string {

@@ -61,7 +61,10 @@ export const API_HEALTH_INTERVAL_MS = 5_000;
 // Pipeline Constants
 
 export const PIPELINE_STEPS: Record<string, string[]> = {
-  full:     ["Discovering datasets", "Unit audit & conversion", "Matching matter–antimatter pairs", "Computing χ² & asymmetry", "Gap analysis", "Constraint atlas", "Generating report"],
+  // Order matches src/pipeline.py's actual execution order (verified against
+  // its print() phase headers) — gap analysis and the constraint atlas run
+  // on the full dataset registry *before* pair-matching, not after.
+  full:     ["Discovering datasets", "Unit audit & conversion", "Gap analysis", "Constraint atlas", "Matching matter–antimatter pairs", "Computing χ² & asymmetry", "Generating report"],
   validate: ["Discovering datasets", "Unit audit & conversion", "Matching matter–antimatter pairs", "Generating validation report"],
   gaps:     ["Discovering datasets", "Scanning λ coverage", "Gap analysis figures"],
   atlas:    ["Discovering datasets", "Constraint atlas plots"],
