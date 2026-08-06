@@ -388,11 +388,11 @@ def get_gap_matrix():
     """
     from src.parser import discover_datasets
     from src.gap_analysis import (
-        SECTOR_LABELS, ANTIMATTER_SECTORS, pot_sort_key,
+        SECTOR_LABELS, ANTIMATTER_SECTORS, pot_sort_key, deduplicate_by_content,
     )
     from collections import defaultdict
 
-    datasets = discover_datasets(DATA_ROOT)
+    datasets = deduplicate_by_content(discover_datasets(DATA_ROOT))
 
     counts = defaultdict(int)
     potentials_seen, sectors_seen = set(), set()

@@ -166,6 +166,8 @@ ANTIMATTER_SECTORS = {
     "nnbar",
     "ppbar",
     "mubar",
+    "antipHe",  # p-bar-He: contains an antiproton
+    "ddmu",     # ddmu+ molecular ion: contains an antimuon
 }
 
 
@@ -234,6 +236,12 @@ FILENAME_SECTOR_OVERRIDES = {
     "Bordag_2001":               ("ee",   False),
     "Delaunay_2017":             ("ee",   False),
     "Colliders":                 ("ee",   False),
+    # Salumbides et al. (2014): bounds derived from antiprotonic helium
+    # (p-bar-He, contains an antiproton) and the ddmu+ molecular ion
+    # (contains an antimuon) -- Cong et al. 2025, p.82: "for p-bar-N" and
+    # "for mu+-N" respectively -- both genuine antimatter-sector bounds.
+    "Salumbides_antipHe_2014":   ("antipHe", True),
+    "Salumbides_ddmu_2014":      ("ddmu",    True),
     "New_constriants_1":         ("ee",   False),
     "New_constriants_2":         ("ee",   False),
     "Neutron_scattering":        ("nn",   False),
@@ -354,14 +362,17 @@ POTENTIAL_PREFIX_MAP = {
 }
 
 
-def extract_potential(parts):
+def extract_potential(parts, filepath=None):
     """
     Extract the Dobrescu-Mocioiu potential label from filename parts.
 
     Priority order:
     1. Explicit V-token (V11, V1213, V4+5, V16, ...)
     2. Numeric prefix on first token
-    3. Fallback UNKNOWN
+    3. Directory-based fallback (e.g. V1_alpha_data/Hoskins_1985.csv, whose
+       filename carries no potential token at all but whose parent
+       directory names the potential unambiguously)
+    4. Fallback UNKNOWN
     """
     if not parts:
         return "UNKNOWN"
@@ -402,6 +413,13 @@ def extract_potential(parts):
     for p in parts[1:]:
         if re.match(r"^\d+[a-z]?$", p) and len(p) <= 3:
             return f"V{p}"
+
+    # ── 4. Directory-based fallback ───────────────────────────
+    if filepath is not None:
+        for segment in Path(filepath).parts:
+            m = re.match(r"^V(\d+)_alpha_data$", segment, re.IGNORECASE)
+            if m:
+                return f"V{m.group(1)}"
 
     return "UNKNOWN"
 
@@ -515,6 +533,11 @@ def extract_author(parts):
             continue
         if p in skip:
             continue
+        # Coupling-type tokens (e.g. "gse", "gsN" -- scalar coupling to
+        # electron/nucleon) are not author names; the real identifier
+        # (e.g. "Casimir", "EMM") follows later in these filenames.
+        if re.match(r"^g[sVAp][a-zA-Z]{0,3}$", p):
+            continue
         if any(c.isalpha() for c in p):
             author = re.sub(r"^\d+[a-z]?", "", p)
             if author:
@@ -558,7 +581,7 @@ def parse_dataset(filepath):
     parts = [p.replace("V4p5", "V4+5") for p in parts]
 
     try:
-        potential = FILENAME_POTENTIAL_OVERRIDES.get(name_clean) or extract_potential(parts)
+        potential = FILENAME_POTENTIAL_OVERRIDES.get(name_clean) or extract_potential(parts, filepath)
         year                         = extract_year(parts)
         author                       = extract_author(parts)
         coupling, interaction_class  = extract_coupling_and_class(filepath)
@@ -585,7 +608,7 @@ def parse_dataset(filepath):
             if sector not in KNOWN_SECTORS:
                 print(f"[WARN] Unrecognized sector {sector!r} in {name}")
 
-        source = f"{author}{year}"
+        source = f"{author}{year}" if year != "UNKNOWN" else author
         label  = build_label(source, sector)
 
         return ConstraintDataset(

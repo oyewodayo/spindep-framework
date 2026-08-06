@@ -18,9 +18,32 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import matplotlib.patheffects as pe
+from adjustText import adjust_text
 from pathlib import Path
 from collections import defaultdict
+import hashlib
 import re
+
+# hbar*c in eV*m, for the secondary "equivalent boson mass" axis
+# (m = hbar*c / lambda), matching Cong et al. 2025 Figs. 15-16.
+HBAR_C_EV_M = 1.973269804e-7
+
+
+def deduplicate_by_content(datasets):
+    """Collapse datasets whose underlying CSV is byte-identical (the same
+    bound catalogued once per coupling class that can generate a given
+    potential -- deliberate in the upstream Cong et al. dataset) to a
+    single representative, so each independent measurement is drawn once
+    per potential instead of once per coupling class it's filed under."""
+    seen_hashes = set()
+    deduped = []
+    for d in datasets:
+        content_hash = hashlib.md5(Path(d.filepath).read_bytes()).hexdigest()
+        if content_hash not in seen_hashes:
+            seen_hashes.add(content_hash)
+            deduped.append(d)
+    return deduped
 
 # ============================================================
 # STYLE CONSTANTS
@@ -28,7 +51,6 @@ import re
 
 NAVY    = "#1a2e4a"
 WHITE   = "#ffffff"
-LIGHT   = "#f4f6f9"
 
 # Colour palette: one colour per sector
 SECTOR_COLOURS = {
@@ -130,54 +152,71 @@ def _load_with_conversion(dataset):
 # FIGURE 1: SINGLE-POTENTIAL CONSTRAINT PLOT
 # ============================================================
 
+# A single sector colour, shared by every dataset in that sector, made it
+# impossible to tell one experiment's curve apart from another's whenever a
+# sector had more than one dataset (the common case) — see DATASET_PALETTE
+# below, which assigns each individual *dataset* its own colour instead.
+DATASET_PALETTE = (
+    list(plt.get_cmap("tab20").colors)
+    + list(plt.get_cmap("tab20b").colors)
+    + list(plt.get_cmap("tab20c").colors)
+)  # 60 visually-distinct colours; cycles (via %) if a potential somehow exceeds that
+
+
+def _readable_color(rgb):
+    """Darken palette colours too light to read as inline label text on
+    the white axes background (some tab20b/c entries are near-pastel)."""
+    r, g, b = rgb
+    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    if lum > 0.6:
+        factor = 0.6 / lum
+        r, g, b = r * factor, g * factor, b * factor
+    return (r, g, b)
+
+
 def plot_single_potential(datasets_for_potential, potential, output_path,
                           coupling_label="g", title_suffix=""):
     """
-    Plot all coupling upper bounds for one potential on a single
-    log-log axis. Matter datasets: solid lines. Antimatter: dashed.
-    Each sector gets a distinct colour.
+    Plot all coupling upper bounds for one potential on a single log-log
+    axis, matching the style of the source review (Cong et al. 2025,
+    Figs. 15-16): each curve is labelled inline, in its own colour, next
+    to the curve itself -- no legend box -- plus a secondary top axis
+    showing the equivalent new-boson mass. Matter datasets: solid lines.
+    Antimatter: dashed.
     """
-    fig, ax = plt.subplots(figsize=(9, 6))
-    ax.set_facecolor(LIGHT)
-    fig.patch.set_facecolor(WHITE)
-
-    plotted_sectors = set()
-    legend_handles  = []
-    n_plotted = 0
-
-    # Sort: matter first, then antimatter
+    # Sort: matter first, then antimatter, alphabetically within each —
+    # keeps colour assignment stable across regenerations.
     sorted_dsets = sorted(
         datasets_for_potential,
         key=lambda d: (d.sector in ANTIMATTER_SECTORS, d.sector, d.source)
     )
 
-    for d in sorted_dsets:
+    n_entries = len(sorted_dsets)
+    # More curves need more room for inline labels to spread into.
+    fig_w = min(11 + 0.09 * n_entries, 22)
+    fig_h = min(7 + 0.07 * n_entries, 14)
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    ax.set_facecolor(WHITE)
+    fig.patch.set_facecolor(WHITE)
+
+    curves = []
+    n_plotted = 0
+
+    for i, d in enumerate(sorted_dsets):
         lam, g = _load_with_conversion(d)
         if lam is None or g is None or len(lam) < 2 or len(g) < 2:
             continue
 
-        color    = SECTOR_COLOURS.get(d.sector, "#888888")
+        color     = _readable_color(DATASET_PALETTE[i % len(DATASET_PALETTE)])
         linestyle = "--" if d.sector in ANTIMATTER_SECTORS else "-"
-        alpha     = 0.85
-        lw        = 1.2
 
-        ax.plot(lam, g,
-                color=color, linestyle=linestyle,
-                linewidth=lw, alpha=alpha,
-                label=f"{d.source} ({SECTOR_LABELS.get(d.sector, d.sector)})")
+        ax.plot(lam, g, color=color, linestyle=linestyle,
+                linewidth=1.3, alpha=0.9)
+
+        label = f"{d.source} ({SECTOR_LABELS.get(d.sector, d.sector)})"
+        curves.append((lam, g, color, label))
         n_plotted += 1
-
-        # One legend entry per sector
-        if d.sector not in plotted_sectors:
-            handle = mlines.Line2D(
-                [], [],
-                color=color,
-                linestyle=linestyle,
-                linewidth=1.8,
-                label=SECTOR_LABELS.get(d.sector, d.sector)
-            )
-            legend_handles.append(handle)
-            plotted_sectors.add(d.sector)
 
     if n_plotted == 0:
         plt.close(fig)
@@ -188,18 +227,38 @@ def plot_single_potential(datasets_for_potential, potential, output_path,
     ax.set_xlabel(r"Interaction range $\lambda$ (m)", fontsize=12, color=NAVY)
     ax.set_ylabel(rf"Coupling upper bound $|{coupling_label}|$", fontsize=12, color=NAVY)
     ax.set_title(
-        rf"${potential}$ potential constraints{' — ' + title_suffix if title_suffix else ''}",
-        fontsize=13, color=NAVY, pad=10
+        rf"${potential}$ potential constraints{' — ' + title_suffix if title_suffix else ''}"
+        f"  (solid = matter, dashed = antimatter)",
+        fontsize=13, color=NAVY, pad=32
     )
 
-    # Matter/antimatter style legend entries
-    matter_line = mlines.Line2D([], [], color="grey", linestyle="-",  linewidth=2, label="Matter sector")
-    anti_line   = mlines.Line2D([], [], color="grey", linestyle="--", linewidth=2, label="Antimatter sector")
+    # Secondary top axis: equivalent new-boson mass, m = hbar*c / lambda
+    # (self-inverse formula, same function both directions).
+    def _lambda_to_mass(lam):
+        with np.errstate(divide="ignore"):
+            return HBAR_C_EV_M / np.where(lam > 0, lam, np.nan)
 
-    # Legend: sector colours + style guide, max 12 entries to avoid overflow
-    display_handles = legend_handles[:12] + [matter_line, anti_line]
-    ax.legend(handles=display_handles, fontsize=7.5,
-              loc="best", framealpha=0.85, ncol=2)
+    secax = ax.secondary_xaxis("top", functions=(_lambda_to_mass, _lambda_to_mass))
+    secax.set_xlabel("Mass (eV)", fontsize=11, color=NAVY)
+    secax.tick_params(labelsize=9)
+
+    # Inline labels anchored at each curve's rightmost point, coloured to
+    # match the curve, with overlaps resolved automatically (thin leader
+    # line drawn where a label had to move away from its curve).
+    texts = []
+    for lam, g, color, label in curves:
+        t = ax.text(lam[-1], g[-1], label, color=color,
+                    fontsize=7.5, fontweight="bold", alpha=0.95)
+        t.set_path_effects([pe.withStroke(linewidth=2.2, foreground=WHITE, alpha=0.85)])
+        texts.append(t)
+
+    adjust_text(
+        texts, ax=ax,
+        arrowprops=dict(arrowstyle="-", color="grey", lw=0.6, alpha=0.6),
+        expand_text=(1.3, 1.6), expand_points=(1.2, 1.4),
+        force_text=(0.6, 1.0), force_points=(0.3, 0.5),
+        lim=1500,
+    )
 
     ax.grid(True, which="both", linestyle=":", linewidth=0.5,
             color="#cccccc", alpha=0.7)
@@ -254,7 +313,7 @@ def plot_constraint_atlas(datasets, output_path, max_panels=20):
     for idx, pot in enumerate(potentials):
         row, col = divmod(idx, ncols)
         ax = axes[row][col]
-        ax.set_facecolor(LIGHT)
+        ax.set_facecolor(WHITE)
 
         dsets = sorted(by_pot[pot],
                        key=lambda d: (d.sector in ANTIMATTER_SECTORS, d.sector))
@@ -392,6 +451,13 @@ def run_constraint_plots(datasets, summary_rows, plots_dir, figures_dir):
     figures_dir = Path(figures_dir)
     atlas_dir   = figures_dir / "constraint_atlas"
     comp_dir    = figures_dir / "matter_antimatter"
+
+    n_before = len(datasets)
+    datasets = deduplicate_by_content(datasets)
+    if len(datasets) != n_before:
+        print(f"[CONSTRAINT] Collapsed {n_before - len(datasets)} duplicate-content "
+              f"datasets (same bound filed under multiple coupling classes) "
+              f"-> {len(datasets)} independent datasets for plotting")
 
     # Group by potential
     by_pot = defaultdict(list)
