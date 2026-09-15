@@ -5,7 +5,9 @@ SPINDEP — Cross-Platform Installer
 Works on Windows, macOS, and Linux (including WSL).
 
 Usage:
-    python3 install.py
+    python3 install.py                 # install
+    python3 install.py --uninstall     # uninstall
+    python3 install.py --uninstall -y  # uninstall, skip confirmation
 
 What it does:
     1. Checks Python >= 3.9
@@ -14,10 +16,16 @@ What it does:
     4. Writes PATH export to ALL detected shell profiles (.bashrc, .zshrc, etc.)
     5. Sources the profile so 'spin' works in the CURRENT terminal immediately
     6. Works from any directory, any terminal — forever
+
+Uninstalling reverses every step above: it removes the pip package, strips
+the PATH entries it added (registry key on Windows, marked block in shell
+profiles elsewhere), and deletes the helper activate scripts.
 """
 
+import argparse
 import sys
 import os
+import re
 import subprocess
 import platform
 import shutil
@@ -349,6 +357,165 @@ def write_activate_hint(scripts_dir: Path):
 
 
 # ============================================================
+# UNINSTALL
+# ============================================================
+
+def confirm(prompt: str, assume_yes: bool) -> bool:
+    if assume_yes:
+        return True
+    if not sys.stdin.isatty():
+        err("Refusing to uninstall without confirmation in a non-interactive "
+            "session. Re-run with --yes.")
+    reply = input(f"  {C.YELLOW}{prompt}{C.RESET} [y/N]: ").strip().lower()
+    return reply in ("y", "yes")
+
+
+def uninstall_package():
+    info("Uninstalling spindep_cli package...")
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "uninstall", "--yes", "spindep_cli"],
+        capture_output=True, text=True,
+    )
+    combined = f"{result.stdout}\n{result.stderr}".lower()
+
+    if result.returncode == 0:
+        ok("Package uninstalled")
+    elif "not installed" in combined or "skipping" in combined:
+        ok("Package was already not installed")
+    else:
+        warn("pip uninstall reported an issue:")
+        print((result.stdout + result.stderr).strip())
+
+
+def remove_path_unix(scripts_dir: Path):
+    """Strip the marked SPINDEP block from every shell profile that has one."""
+    profiles = _shell_profiles()
+    block_re = re.compile(
+        rf"\n?{re.escape(_PATH_MARKER)}.*?{re.escape(_PATH_END)}\n?", re.DOTALL,
+    )
+
+    cleaned = []
+    for profile in profiles:
+        if not profile.exists():
+            continue
+        content = profile.read_text(encoding="utf-8")
+        if _PATH_MARKER not in content:
+            continue
+        profile.write_text(block_re.sub("\n", content), encoding="utf-8")
+        cleaned.append(profile.name)
+
+    if cleaned:
+        ok(f"PATH block removed from: {', '.join(cleaned)}")
+    else:
+        ok("No SPINDEP PATH entry found in shell profiles")
+
+    # Strip from the current process's PATH too, for consistency.
+    remaining = [
+        p for p in os.environ.get("PATH", "").split(os.pathsep)
+        if p and Path(p) != scripts_dir
+    ]
+    os.environ["PATH"] = os.pathsep.join(remaining)
+
+
+def remove_path_windows(scripts_dir: Path):
+    try:
+        import winreg
+    except ImportError:
+        warn("winreg unavailable — not running on native Windows. Skipping PATH cleanup.")
+        return
+
+    scripts_str = str(scripts_dir)
+    try:
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, "Environment",
+            0, winreg.KEY_READ | winreg.KEY_WRITE,
+        )
+        try:
+            current_path, _ = winreg.QueryValueEx(key, "PATH")
+        except FileNotFoundError:
+            current_path = ""
+
+        entries = [p for p in current_path.split(";") if p.strip()]
+        remaining = [p for p in entries if p.strip().lower() != scripts_str.lower()]
+
+        if len(remaining) != len(entries):
+            winreg.SetValueEx(key, "PATH", 0, winreg.REG_EXPAND_SZ, ";".join(remaining))
+            ok(f"PATH entry removed from registry: {scripts_str}")
+            warn("Open a NEW terminal for the change to take effect.")
+        else:
+            ok("No SPINDEP PATH entry found in registry")
+        winreg.CloseKey(key)
+
+        try:
+            import ctypes
+            ctypes.windll.user32.SendMessageTimeoutW(
+                0xFFFF, 0x001A, 0, "Environment", 0x0002, 5000, None,
+            )
+        except Exception:
+            pass
+
+    except Exception as exc:
+        warn(f"Registry cleanup failed: {exc}")
+        blank()
+        print("  Remove this folder from PATH manually:")
+        print(f"    {C.CYAN}{scripts_str}{C.RESET}")
+        print("  How: Settings → System → Advanced System Settings")
+        print("       → Environment Variables → User PATH → Edit → Remove")
+
+
+def remove_path(scripts_dir: Path):
+    info("Removing PATH entries...")
+    if IS_WIN:
+        remove_path_windows(scripts_dir)
+    else:
+        remove_path_unix(scripts_dir)
+
+
+def remove_helper_files():
+    removed = []
+    for name in ("activate_spin.sh", "activate_spin.ps1"):
+        f = Path(__file__).parent / name
+        if f.exists():
+            f.unlink()
+            removed.append(name)
+    if removed:
+        ok(f"Removed helper files: {', '.join(removed)}")
+
+
+def uninstall(assume_yes: bool = False):
+    head("SPINDEP Uninstaller")
+
+    if not confirm(
+        "This will remove the 'spindep_cli' package, its PATH entries, "
+        "and helper scripts. Continue?",
+        assume_yes,
+    ):
+        info("Uninstall cancelled.")
+        return
+    blank()
+
+    uninstall_package()
+    blank()
+
+    scripts_dir = get_user_scripts_dir()
+    remove_path(scripts_dir)
+    blank()
+
+    remove_helper_files()
+    blank()
+
+    still_found = shutil.which("spin")
+    if still_found:
+        warn(f"'spin' is still reachable on PATH at: {still_found}")
+        print("  It may be installed in a different Python environment or venv.")
+    else:
+        ok("'spin' command removed")
+
+    blank()
+    ok("Uninstall complete.")
+
+
+# ============================================================
 # STEP 7 — USAGE REMINDER
 # ============================================================
 
@@ -422,5 +589,22 @@ def main():
     write_activate_hint(scripts_dir)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="SPINDEP installer / uninstaller")
+    parser.add_argument(
+        "--uninstall", action="store_true",
+        help="Remove the spindep_cli package, its PATH entries, and helper scripts",
+    )
+    parser.add_argument(
+        "-y", "--yes", action="store_true",
+        help="Skip confirmation prompts (used with --uninstall)",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    if args.uninstall:
+        uninstall(assume_yes=args.yes)
+    else:
+        main()
