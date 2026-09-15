@@ -55,6 +55,7 @@ setup(
         "matplotlib>=3.7.0",
         "reportlab>=4.0.0",
         "Pillow>=9.0.0",
+        "adjustText>=0.8",
     ],
 
     # ── optional dependencies ────────────────────────────────
