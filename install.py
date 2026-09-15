@@ -21,6 +21,7 @@ import os
 import subprocess
 import platform
 import shutil
+import sysconfig
 from pathlib import Path
 
 
@@ -131,12 +132,8 @@ def install_package(script_dir: Path):
 
 def get_user_scripts_dir() -> Path:
     """Return the directory where pip install --user places scripts."""
-    result = subprocess.run(
-        [sys.executable, "-m", "site", "--user-base"],
-        capture_output=True, text=True, check=True,
-    )
-    user_base = Path(result.stdout.strip())
-    return user_base / "Scripts" if IS_WIN else user_base / "bin"
+    scheme = "nt_user" if IS_WIN else "posix_user"
+    return Path(sysconfig.get_path("scripts", scheme))
 
 
 # ============================================================
@@ -299,18 +296,9 @@ def write_activate_hint(scripts_dir: Path):
     We can't directly modify the parent shell's environment from Python,
     but we can:
       1. Print the exact one-liner the user needs (minimal friction).
-      2. Write a tiny activate.sh they can source.
+      2. Write a tiny activate script they can source/dot-source.
       3. Export PATH for any subprocess we spawn (already done above).
     """
-    activate = Path(__file__).parent / "activate_spin.sh"
-    activate.write_text(
-        "#!/usr/bin/env bash\n"
-        f'export PATH="{scripts_dir}:$PATH"\n'
-        'echo "  [OK]  spin is now available in this terminal."\n',
-        encoding="utf-8",
-    )
-    activate.chmod(0o755)
-
     blank()
     print(f"{C.BOLD}{C.CYAN}{'─'*62}{C.RESET}")
     print(f"{C.BOLD}{C.CYAN}  One more step — activate in THIS terminal:{C.RESET}")
@@ -319,15 +307,40 @@ def write_activate_hint(scripts_dir: Path):
     print(f"  {C.YELLOW}Run ONE of these:{C.RESET}")
     blank()
 
-    shell = os.environ.get("SHELL", "")
-    rc    = "~/.zshrc" if "zsh" in shell else "~/.bashrc"
+    if IS_WIN:
+        activate = Path(__file__).parent / "activate_spin.ps1"
+        activate.write_text(
+            f'$env:PATH = "{scripts_dir};" + $env:PATH\n'
+            'Write-Host "  [OK]  spin is now available in this terminal."\n',
+            encoding="utf-8",
+        )
 
-    print(f"  {C.CYAN}source {rc}{C.RESET}              "
-          f"  {C.BOLD}# reload your shell profile{C.RESET}")
-    print(f"  {C.CYAN}source ./activate_spin.sh{C.RESET}      "
-          f"  {C.BOLD}# quick one-shot activate{C.RESET}")
-    print(f"  {C.CYAN}export PATH=\"{scripts_dir}:$PATH\"{C.RESET}  "
-          f"  {C.BOLD}# inline (paste directly){C.RESET}")
+        print(f"  {C.CYAN}. .\\activate_spin.ps1{C.RESET}                 "
+              f"  {C.BOLD}# quick one-shot activate{C.RESET}")
+        print(f"  {C.CYAN}$env:PATH = \"{scripts_dir};\" + $env:PATH{C.RESET}  "
+              f"  {C.BOLD}# inline (paste directly){C.RESET}")
+        blank()
+        print(f"  Or simply {C.YELLOW}open a new terminal{C.RESET} — PATH was updated in the registry.")
+    else:
+        activate = Path(__file__).parent / "activate_spin.sh"
+        activate.write_text(
+            "#!/usr/bin/env bash\n"
+            f'export PATH="{scripts_dir}:$PATH"\n'
+            'echo "  [OK]  spin is now available in this terminal."\n',
+            encoding="utf-8",
+        )
+        activate.chmod(0o755)
+
+        shell = os.environ.get("SHELL", "")
+        rc    = "~/.zshrc" if "zsh" in shell else "~/.bashrc"
+
+        print(f"  {C.CYAN}source {rc}{C.RESET}              "
+              f"  {C.BOLD}# reload your shell profile{C.RESET}")
+        print(f"  {C.CYAN}source ./activate_spin.sh{C.RESET}      "
+              f"  {C.BOLD}# quick one-shot activate{C.RESET}")
+        print(f"  {C.CYAN}export PATH=\"{scripts_dir}:$PATH\"{C.RESET}  "
+              f"  {C.BOLD}# inline (paste directly){C.RESET}")
+
     blank()
     print(f"  After that: {C.GREEN}spin --help{C.RESET}")
     blank()
@@ -396,14 +409,15 @@ def main():
     else:
         warn("Installation finished but 'spin' was not found.")
         blank()
-        print(f"  Expected: {scripts_dir / 'spin'}")
+        spin_name = "spin.exe" if IS_WIN else "spin"
+        print(f"  Expected: {scripts_dir / spin_name}")
         blank()
         print("  Possible causes:")
         print("  1. pip used a different scripts directory")
         print("  2. The entry point in setup.py doesn't match the package")
         blank()
-        print(f"  Debug: {C.CYAN}pip show -f spindep | grep spin{C.RESET}")
-        print(f"  Debug: {C.CYAN}python3 -c \"from spindep.cli import main; print('OK')\"{C.RESET}")
+        print(f"  Debug: {C.CYAN}pip show -f spindep_cli | grep spin{C.RESET}")
+        print(f"  Debug: {C.CYAN}python3 -c \"from spindep_cli.cli import main; print('OK')\"{C.RESET}")
 
     write_activate_hint(scripts_dir)
 
