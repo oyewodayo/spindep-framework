@@ -116,10 +116,16 @@ Check everything's working with `spin info` (add `--data ./datasets` to also see
 ### Uninstalling
 
 ```bash
-python3 install.py --uninstall
+spin uninstall
 ```
 
-Removes the `spindep_cli` package, undoes the PATH changes `install.py` made (the registry entry on Windows, the marked block in your shell profiles elsewhere), and deletes the helper activate script. Add `-y`/`--yes` to skip the confirmation prompt.
+Works from **any directory** — no need to `cd` into the project first. It finds the original checkout automatically and removes the `spindep_cli` package, undoes the PATH changes `install.py` made (the registry entry on Windows, the marked block in your shell profiles elsewhere), and deletes the helper activate script. Add `-y`/`--yes` to skip the confirmation prompt.
+
+If `spin` isn't on your PATH anymore for some reason, fall back to running the installer directly (this does need to be from inside the project folder, or with a full path to `install.py`):
+
+```bash
+python3 install.py --uninstall
+```
 
 ## Quick start
 
@@ -245,6 +251,15 @@ spin atlas --data ./datasets --output ./thesis_figures # constraint atlas only
 spin info                     # framework status + dependency versions
 spin info --data ./datasets   # also shows dataset and pair counts
 ```
+
+### `spin uninstall` — remove SPINDEP
+
+```bash
+spin uninstall      # removes the package, PATH entries, and helper scripts
+spin uninstall -y   # same, without the confirmation prompt
+```
+
+Works from anywhere — it locates the original checkout itself, so you don't need to `cd` into it first. See [Uninstalling](#uninstalling) above for details.
 
 ### Help
 
@@ -443,6 +458,7 @@ Both columns must be strictly positive — rows that aren't get silently dropped
 | `spin config` | `CONFIG.yaml` | Run from config file |
 | `spin batch` | `JOBS.yaml` | Run multiple jobs |
 | `spin info` | `[--data DIR]` | Status and dependency info |
+| `spin uninstall` | `[-y]` | Remove SPINDEP (package, PATH, helper scripts) — works from any directory |
 | `spin --help` | | List all commands |
 | `spin CMD --help` | | Help for specific command |
 

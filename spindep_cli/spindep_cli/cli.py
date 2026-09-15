@@ -17,6 +17,7 @@ USAGE
   spin config    myconfig.yaml              # Run from a config file
   spin batch     jobs.yaml                  # Run multiple jobs
   spin info      --data ./datasets          # Framework status
+  spin uninstall [-y]                       # Remove SPINDEP entirely
 
 For help on any command:
   spin <command> --help
@@ -1028,6 +1029,60 @@ def cmd_info(args):
             warn(f"Could not load datasets: {exc}")
 
 
+def cmd_uninstall(args):
+    banner("SPINDEP  .  Uninstall")
+
+    root = _find_project_root()
+    installer = (root / "install.py") if root else None
+
+    if installer and installer.exists():
+        # Delegate to the original installer's --uninstall — it already
+        # knows how to strip the PATH entries (registry on Windows, marked
+        # block in shell profiles elsewhere) and remove the helper activate
+        # scripts. This works from any directory: 'spin' finds its own
+        # checkout via _find_project_root(), the same lookup cmd_start uses.
+        info(f"Delegating to: {installer}")
+        blank()
+        cmd = [sys.executable, str(installer), "--uninstall"]
+        if args.yes:
+            cmd.append("-y")
+        result = subprocess.run(cmd)
+        sys.exit(result.returncode)
+
+    # Fallback: the original checkout can't be found (moved, deleted, or a
+    # non-editable install). Do what's still possible from here — remove
+    # the pip package — and say plainly what wasn't cleaned up.
+    warn("Could not locate the original spindep_framework checkout "
+         "(install.py not found).")
+    grey("  Removing just the Python package; PATH entries and helper")
+    grey("  scripts (activate_spin.sh / activate_spin.ps1) won't be")
+    grey("  cleaned up automatically — remove those by hand if needed.")
+    blank()
+
+    if not args.yes:
+        if not sys.stdin.isatty():
+            err("Refusing to uninstall without confirmation in a non-interactive session. Re-run with --yes.")
+            sys.exit(1)
+        reply = input("  Remove the 'spindep_cli' package? [y/N]: ").strip().lower()
+        if reply not in ("y", "yes"):
+            info("Uninstall cancelled.")
+            return
+
+    info("Uninstalling spindep_cli package...")
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "uninstall", "--yes", "spindep_cli"],
+        capture_output=True, text=True,
+    )
+    combined = f"{result.stdout}\n{result.stderr}".lower()
+    if result.returncode == 0:
+        ok("Package uninstalled")
+    elif "not installed" in combined or "skipping" in combined:
+        ok("Package was already not installed")
+    else:
+        warn("pip uninstall reported an issue:")
+        print((result.stdout + result.stderr).strip())
+
+
 # ============================================================
 # MAIN ARGUMENT PARSER
 # ============================================================
@@ -1193,6 +1248,16 @@ def main():
     p.add_argument("--data", metavar="DIR",
         help="Optional: show dataset summary for this folder")
 
+    # ── uninstall ────────────────────────────────────────────
+    p = sub.add_parser("uninstall",
+        help="Remove SPINDEP (package, PATH entries, helper scripts)",
+        description="Uninstall the spindep_cli package, undo the PATH changes "
+                    "the installer made, and remove its helper activate scripts. "
+                    "Works from any directory — no need to be inside the "
+                    "spindep_framework checkout.\n\nExample:\n  spin uninstall")
+    p.add_argument("-y", "--yes", action="store_true",
+        help="Skip the confirmation prompt")
+
     # ── dispatch ─────────────────────────────────────────────
     args = parser.parse_args()
     if args.command is None:
@@ -1210,6 +1275,7 @@ def main():
         "config":   cmd_config,
         "batch":    cmd_batch,
         "info":     cmd_info,
+        "uninstall": cmd_uninstall,
     }[args.command](args)
 
 
