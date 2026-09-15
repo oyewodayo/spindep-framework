@@ -63,7 +63,26 @@ A_α(λ) = [g_m(λ) − g_ā(λ)] / [g_m(λ) + g_ā(λ)]
 
 ## Installation
 
-Needs Python 3.9+, and Node.js if you want the web GUI (`spin start`).
+Needs Python 3.9+, and Node.js if you want the web GUI (`spin start`). Don't have either yet? See **Option 0** below — it installs both for you.
+
+### Option 0 — Starting from a completely bare machine
+
+If your system has neither Python nor Node.js installed, run the bootstrap script for your OS first — it detects what's missing, asks before installing anything, and then runs the installer for you:
+
+```bash
+git clone https://github.com/oyewodayo/spindep_framework.git
+cd spindep_framework
+
+# Windows (PowerShell):
+powershell -ExecutionPolicy Bypass -File bootstrap.ps1
+
+# macOS / Linux:
+chmod +x bootstrap.sh && ./bootstrap.sh
+```
+
+It checks for Python 3.9+ and, if missing, offers to install it automatically (via `winget` on Windows, `brew`/`apt`/`dnf`/`pacman` elsewhere) — asking `[Y/n]` before touching anything. Same for Node.js, with one caveat: **Node.js is only needed so you can view SPINDEP in your browser** (`spin start`); every other command (`spin run`, `spin test`, `spin validate`, ...) works fine without it, so it's safe to decline that part if you only want the CLI. Once prerequisites are in place, it hands off to `install.py` automatically.
+
+Already have Python? Skip straight to Option 1.
 
 ### Option 1 — One-line install (recommended)
 
@@ -73,7 +92,9 @@ cd spindep_framework
 python3 install.py
 ```
 
-This checks your Python version, optionally sets up a virtualenv, installs the dependencies (numpy, scipy, pandas, matplotlib, reportlab, Pillow), and registers the `spin` command globally. Open a new terminal afterwards and run `spin --help` to confirm it worked.
+This checks your Python version, optionally sets up a virtualenv, installs the dependencies (numpy, scipy, pandas, matplotlib, reportlab, Pillow, fastapi, uvicorn), and registers the `spin` command globally. Open a new terminal afterwards and run `spin --help` to confirm it worked.
+
+If Node.js isn't installed when you later run `spin start`, it will offer to install it for you the same way (`winget`/`brew`/`apt`/`dnf`), rather than just failing.
 
 If you'd rather install manually:
 
@@ -512,6 +533,8 @@ FILENAME_SECTOR_OVERRIDES["MyAuthor_2024"] = ("ep", False)
 
 ```
 spindep_framework/
+├── bootstrap.ps1                 # Windows: installs Python/Node if missing, then runs install.py
+├── bootstrap.sh                  # macOS/Linux: same, via brew/apt/dnf/pacman
 ├── install.py                    # One-line installer
 ├── setup.py                      # pip install config (registers 'spin')
 ├── README.md                     # This file

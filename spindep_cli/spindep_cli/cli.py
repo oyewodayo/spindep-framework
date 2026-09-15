@@ -82,6 +82,15 @@ import webbrowser
 from pathlib import Path
 from datetime import datetime
 
+# Some environments (piped output, non-UTF-8 locales, older Windows
+# consoles) leave stdout on a codec that can't encode the box-drawing
+# characters this CLI prints. Force UTF-8 so it never crashes on that.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
+
 
 # ============================================================
 # TERMINAL COLOURS — safe on all platforms
@@ -307,6 +316,111 @@ def _wait_for_port(host: str, port: int, timeout: float) -> bool:
     return False
 
 
+def _ensure_backend_deps(root: Path):
+    """
+    Make sure the backend API's dependencies (fastapi, uvicorn, ...) are
+    installed before we try to spawn server.py. Mirrors the automatic
+    'npm install' step below for the frontend, so a freshly cloned repo
+    works with just 'spin start' — no manual pip install required.
+    """
+    try:
+        import importlib
+        importlib.import_module("fastapi")
+        importlib.import_module("uvicorn")
+        return
+    except ImportError:
+        pass
+
+    req_file = root / "requirements.txt"
+    info("First run — installing backend dependencies (one-time)...")
+    cmd = [sys.executable, "-m", "pip", "install", "--quiet", "--user"]
+    cmd += ["-r", str(req_file)] if req_file.exists() else ["fastapi", "uvicorn", "python-multipart"]
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        err("Failed to install backend dependencies automatically.")
+        grey(f"  Try manually: {sys.executable} -m pip install -r {req_file}")
+        sys.exit(1)
+    ok("Backend dependencies installed.")
+
+
+def _confirm_yn(prompt: str) -> bool:
+    """Interactive Y/n prompt. Defaults to 'no' when not running in a terminal."""
+    if not sys.stdin.isatty():
+        return False
+    try:
+        reply = input(f"  {prompt} [Y/n]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return False
+    return reply in ("", "y", "yes")
+
+
+def _refresh_path_from_registry():
+    """
+    After installing something via winget, the current process's PATH is
+    stale (winget updates the registry, not this already-running process).
+    Pull the latest Machine+User PATH so we can find the new command
+    immediately, without asking the user to open a new terminal.
+    """
+    if platform.system() != "Windows":
+        return
+    try:
+        import winreg
+        with winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+        ) as key:
+            machine_path, _ = winreg.QueryValueEx(key, "PATH")
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+                user_path, _ = winreg.QueryValueEx(key, "PATH")
+        except FileNotFoundError:
+            user_path = ""
+        os.environ["PATH"] = f"{machine_path}{os.pathsep}{user_path}"
+    except Exception:
+        pass
+
+
+def _try_auto_install_node() -> bool:
+    """Install Node.js via whatever OS package manager is available."""
+    system = platform.system()
+    if system == "Windows" and shutil.which("winget"):
+        cmd = ["winget", "install", "-e", "--id", "OpenJS.NodeJS.LTS",
+               "--accept-source-agreements", "--accept-package-agreements"]
+    elif system == "Darwin" and shutil.which("brew"):
+        cmd = ["brew", "install", "node"]
+    elif system == "Linux" and shutil.which("apt-get"):
+        cmd = ["sudo", "apt-get", "install", "-y", "nodejs", "npm"]
+    elif system == "Linux" and shutil.which("dnf"):
+        cmd = ["sudo", "dnf", "install", "-y", "nodejs", "npm"]
+    elif system == "Linux" and shutil.which("pacman"):
+        cmd = ["sudo", "pacman", "-S", "--noconfirm", "nodejs", "npm"]
+    else:
+        return False
+
+    info(f"Installing Node.js  ({' '.join(cmd)})...")
+    result = subprocess.run(cmd)
+    _refresh_path_from_registry()
+    return result.returncode == 0
+
+
+def _install_frontend_deps(gui_dir: Path, npm: str) -> bool:
+    """
+    Install the web interface's node_modules. Prefers 'npm ci' when a
+    lockfile is present — it installs exactly what's pinned there and is
+    more deterministic than 'npm install', which helps avoid npm's known
+    optional-dependency flakiness (https://github.com/npm/cli/issues/4828).
+    """
+    cmd = [npm, "ci"] if (gui_dir / "package-lock.json").exists() else [npm, "install"]
+    return subprocess.run(cmd, cwd=str(gui_dir)).returncode == 0
+
+
+def _start_frontend(npm: str, gui_dir: Path) -> subprocess.Popen:
+    return _popen_detached(
+        [npm, "run", "dev", "--", "--port", str(FRONTEND_PORT), "--strictPort"],
+        cwd=str(gui_dir),
+    )
+
+
 def _popen_detached(cmd: list, cwd: str) -> subprocess.Popen:
     """
     Launch a child in its own process group/session, so tools like
@@ -385,6 +499,7 @@ def cmd_start(args):
             warn(f"Something is already listening on port {BACKEND_PORT} — "
                  "assuming the backend is already running.")
         else:
+            _ensure_backend_deps(root)
             info(f"Starting backend API on port {BACKEND_PORT}...")
             backend_proc = _popen_detached([sys.executable, "server.py"], cwd=str(api_dir))
             if not _wait_for_port("localhost", BACKEND_PORT, timeout=25):
@@ -396,15 +511,31 @@ def cmd_start(args):
         # ── frontend ─────────────────────────────────────────
         npm = shutil.which("npm")
         if npm is None:
-            err("Node.js/npm not found — required to run the web interface.")
-            grey("  Install Node.js (LTS) from https://nodejs.org, then re-run 'spin start'.")
-            _stop_process(backend_proc)
-            sys.exit(1)
+            warn("Node.js was not found on this system.")
+            grey("  It's only needed so you can VIEW SPINDEP in your browser —")
+            grey("  every other 'spin' command (run, test, validate, ...) works without it.")
+            blank()
+            if _confirm_yn("Install Node.js automatically now?"):
+                if _try_auto_install_node():
+                    npm = shutil.which("npm")
+                    if npm:
+                        ok(f"Node.js is ready: {npm}")
+                    else:
+                        warn("Node.js was installed, but this terminal can't see it yet.")
+                else:
+                    warn("Automatic install didn't work (no supported package "
+                         "manager found, or it failed).")
+
+            if npm is None:
+                err("Node.js/npm still not available — required for the web interface.")
+                grey("  Install it manually from https://nodejs.org, then re-run 'spin start'.")
+                grey("  (Or open a NEW terminal if you just installed it — PATH needs to reload.)")
+                _stop_process(backend_proc)
+                sys.exit(1)
 
         if not (gui_dir / "node_modules").is_dir():
             info("First run — installing web interface dependencies (one-time, ~1 min)...")
-            install = subprocess.run([npm, "install"], cwd=str(gui_dir))
-            if install.returncode != 0:
+            if not _install_frontend_deps(gui_dir, npm):
                 err("npm install failed — see output above.")
                 _stop_process(backend_proc)
                 sys.exit(1)
@@ -415,15 +546,27 @@ def cmd_start(args):
                  "assuming the web interface is already running.")
         else:
             info(f"Starting web interface on port {FRONTEND_PORT}...")
-            frontend_proc = _popen_detached(
-                [npm, "run", "dev", "--", "--port", str(FRONTEND_PORT), "--strictPort"],
-                cwd=str(gui_dir),
-            )
+            frontend_proc = _start_frontend(npm, gui_dir)
             if not _wait_for_port("localhost", FRONTEND_PORT, timeout=30):
-                err(f"Web interface did not come up on port {FRONTEND_PORT} within 30s.")
+                # npm has a known bug where platform-specific optional
+                # dependencies (e.g. the native rolldown bundler binding)
+                # sometimes fail to install even on a clean node_modules
+                # (https://github.com/npm/cli/issues/4828). Self-heal once:
+                # wipe node_modules, reinstall from the lockfile, and retry.
+                warn("Web interface didn't come up — retrying with a clean "
+                     "reinstall (known npm optional-dependency bug)...")
                 _stop_process(frontend_proc)
-                _stop_process(backend_proc)
-                sys.exit(1)
+                shutil.rmtree(gui_dir / "node_modules", ignore_errors=True)
+                if not _install_frontend_deps(gui_dir, npm):
+                    err("npm reinstall failed — see output above.")
+                    _stop_process(backend_proc)
+                    sys.exit(1)
+                frontend_proc = _start_frontend(npm, gui_dir)
+                if not _wait_for_port("localhost", FRONTEND_PORT, timeout=30):
+                    err(f"Web interface did not come up on port {FRONTEND_PORT} within 30s.")
+                    _stop_process(frontend_proc)
+                    _stop_process(backend_proc)
+                    sys.exit(1)
             ok(f"Web interface is up:  http://localhost:{FRONTEND_PORT}")
 
         blank()

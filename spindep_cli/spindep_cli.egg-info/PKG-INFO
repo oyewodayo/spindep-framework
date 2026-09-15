@@ -30,9 +30,18 @@ Provides-Extra: dev
 Requires-Dist: pytest; extra == "dev"
 Requires-Dist: black; extra == "dev"
 Requires-Dist: flake8; extra == "dev"
+Provides-Extra: api
+Requires-Dist: fastapi>=0.136.0; extra == "api"
+Requires-Dist: uvicorn>=0.47.0; extra == "api"
+Requires-Dist: python-multipart>=0.0.32; extra == "api"
+Requires-Dist: h5py>=3.16.0; extra == "api"
 Provides-Extra: full
 Requires-Dist: pyyaml>=6.0; extra == "full"
 Requires-Dist: seaborn>=0.12.0; extra == "full"
+Requires-Dist: fastapi>=0.136.0; extra == "full"
+Requires-Dist: uvicorn>=0.47.0; extra == "full"
+Requires-Dist: python-multipart>=0.0.32; extra == "full"
+Requires-Dist: h5py>=3.16.0; extra == "full"
 Dynamic: author
 Dynamic: author-email
 Dynamic: classifier

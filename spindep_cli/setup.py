@@ -61,7 +61,9 @@ setup(
     extras_require={
         "yaml":  ["pyyaml>=6.0"],      # for spin config / spin batch
         "dev":   ["pytest", "black", "flake8"],
-        "full":  ["pyyaml>=6.0", "seaborn>=0.12.0"],
+        "api":   ["fastapi>=0.136.0", "uvicorn>=0.47.0", "python-multipart>=0.0.32", "h5py>=3.16.0"],
+        "full":  ["pyyaml>=6.0", "seaborn>=0.12.0", "fastapi>=0.136.0", "uvicorn>=0.47.0",
+                  "python-multipart>=0.0.32", "h5py>=3.16.0"],
     },
 
     # ── THE KEY PART: register 'spin' as a terminal command ──

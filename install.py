@@ -32,6 +32,16 @@ import shutil
 import sysconfig
 from pathlib import Path
 
+# Some environments (piped output, non-UTF-8 locales, older Windows
+# consoles) leave stdout on a codec that can't encode the box-drawing
+# characters this installer prints. Force UTF-8 so the banner never
+# crashes the install itself.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
+
 
 # ============================================================
 # TERMINAL COLOURS
