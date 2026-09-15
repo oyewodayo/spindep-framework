@@ -92,6 +92,14 @@ python3 spindep/cli.py run --data ./datasets
 
 Check everything's working with `spin info` (add `--data ./datasets` to also see a dataset summary).
 
+### Uninstalling
+
+```bash
+python3 install.py --uninstall
+```
+
+Removes the `spindep_cli` package, undoes the PATH changes `install.py` made (the registry entry on Windows, the marked block in your shell profiles elsewhere), and deletes the helper activate script. Add `-y`/`--yes` to skip the confirmation prompt.
+
 ## Quick start
 
 Not a terminal person, or just want to poke around? Run `spin start` — it launches the backend and the web GUI together and opens your browser. `Ctrl+C` stops both.
