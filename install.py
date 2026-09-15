@@ -322,7 +322,13 @@ def write_activate_hint(scripts_dir: Path):
     print(f"{C.BOLD}{C.CYAN}  One more step — activate in THIS terminal:{C.RESET}")
     print(f"{C.BOLD}{C.CYAN}{'─'*62}{C.RESET}")
     blank()
-    print(f"  {C.YELLOW}Run ONE of these:{C.RESET}")
+    print(f"  {C.YELLOW}This terminal window was already open before PATH was{C.RESET}")
+    print(f"  {C.YELLOW}updated, so it can't see the change yet. Easiest fix:{C.RESET}")
+    blank()
+    print(f"  {C.BOLD}{C.GREEN}>>> Close this terminal window and open a new one. <<<{C.RESET}")
+    print(f"      {C.CYAN}spin{C.RESET} will work there immediately — nothing else to run.")
+    blank()
+    print(f"  {C.YELLOW}Don't want to close this window? Run ONE of these instead:{C.RESET}")
     blank()
 
     if IS_WIN:
@@ -337,8 +343,6 @@ def write_activate_hint(scripts_dir: Path):
               f"  {C.BOLD}# quick one-shot activate{C.RESET}")
         print(f"  {C.CYAN}$env:PATH = \"{scripts_dir};\" + $env:PATH{C.RESET}  "
               f"  {C.BOLD}# inline (paste directly){C.RESET}")
-        blank()
-        print(f"  Or simply {C.YELLOW}open a new terminal{C.RESET} — PATH was updated in the registry.")
     else:
         activate = Path(__file__).parent / "activate_spin.sh"
         activate.write_text(
