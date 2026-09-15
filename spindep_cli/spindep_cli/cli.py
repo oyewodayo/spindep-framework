@@ -58,7 +58,7 @@ INSTALL AS SYSTEM COMMAND
   # Linux / macOS — add alias to shell profile
   echo 'alias spindep="python3 /path/to/spindep_cli.py"' >> ~/.bashrc
   source ~/.bashrc
-  spindep run --data ./my_datasets
+    spin run     --data ./my_datasets
 
   # Linux / macOS — make directly executable
   chmod +x spindep_cli.py
@@ -1129,9 +1129,9 @@ def main():
             "  Analyse matter-antimatter CPT asymmetry in exotic spin-dependent"
             "  interactions from published experimental constraint datasets."
             f"{C.BOLD}Quick start:{C.RESET}"
-            f"  spindep run      --data ./my_datasets"
-            f"  spindep test     matter.csv antimatter.csv --plot"
-            f"  spindep validate --data ./my_datasets"
+            f"  spin run         --data ./my_datasets"
+            f"  spin test        matter.csv antimatter.csv --plot"
+            f"  spin validate    --data ./my_datasets"
         ),
         epilog=EPILOG,
     )
