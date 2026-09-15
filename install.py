@@ -20,6 +20,7 @@ import sys
 import os
 import subprocess
 import platform
+import shutil
 from pathlib import Path
 
 
@@ -280,9 +281,7 @@ def verify(scripts_dir: Path) -> bool:
         warn(f"'spin' not found at expected location: {spin_exe}")
         blank()
         # Try finding it anywhere on PATH as a fallback
-        found = subprocess.run(
-            ["which", "spin"], capture_output=True, text=True
-        ).stdout.strip()
+        found = shutil.which("spin")
         if found:
             ok(f"'spin' found via PATH at: {found}")
             return True
