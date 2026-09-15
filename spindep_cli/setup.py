@@ -24,7 +24,7 @@ AFTER INSTALL — works from anywhere:
 from setuptools import setup, find_packages
 from pathlib import Path
 
-long_desc = Path("README.md").read_text() if Path("README.md").exists() else ""
+long_desc = Path("README.md").read_text(encoding="utf-8") if Path("README.md").exists() else ""
 
 setup(
     name="spindep_cli",
