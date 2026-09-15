@@ -323,10 +323,6 @@ FILENAME_SECTOR_OVERRIDES = {
     "1aNNastro_m_abs":           ("NNastro", False),
     "1anNastro_m_abs":           ("nNastro", False),
     "1apNastro_m_abs":           ("pNastro", False),
-
-    # ── Salumbides exotic ─────────────────────────────────────
-    "Salumbides_antipHe_2014":   ("antipHe", False),
-    "Salumbides_ddmu_2014":      ("ddmu",    False),
 }
 
 
