@@ -15,7 +15,24 @@ import matplotlib.patches as mpatches
 from matplotlib.colors import LinearSegmentedColormap
 from pathlib import Path
 from collections import defaultdict
+import hashlib
 import re
+
+
+def deduplicate_by_content(datasets):
+    """Collapse datasets whose underlying CSV is byte-identical (the same
+    bound catalogued once per coupling class that can generate a given
+    potential -- deliberate in the upstream Cong et al. dataset) to a
+    single representative, so coverage counts reflect independent
+    measurements rather than coupling-class multiplicity."""
+    seen_hashes = set()
+    deduped = []
+    for d in datasets:
+        content_hash = hashlib.md5(Path(d.filepath).read_bytes()).hexdigest()
+        if content_hash not in seen_hashes:
+            seen_hashes.add(content_hash)
+            deduped.append(d)
+    return deduped
 
 NAVY    = "#1a2e4a"
 STEEL   = "#2d6a9f"
@@ -35,11 +52,14 @@ SECTOR_LABELS = {
     "mumu": "mu-mu", "mumubar": "mu-mubar", "np": "n-p", "npbar": "n-pbar",
     "nn": "n-n", "nnbar": "n-nbar", "pp": "p-p", "ppbar": "p-pbar",
     "eN": "e-N", "eNbar": "e-Nbar", "nN": "n-N", "pN": "p-N",
+    "antipHe": "pbar-He", "ddmu": "ddmu+",
 }
 
 ANTIMATTER_SECTORS = {
     "eebar","epbar","enbar","emubar","mumubar",
-    "npbar","nnbar","ppbar","eNbar"
+    "npbar","nnbar","ppbar","eNbar",
+    "antipHe",  # p-bar-He: contains an antiproton
+    "ddmu",     # ddmu+ molecular ion: contains an antimuon
 }
 
 
@@ -102,12 +122,17 @@ def plot_pair_coverage_matrix(datasets, output_path):
 
 
 # ============================================================
-# FIGURE 2 — DATASET INVENTORY (FIXED: no overlapping labels)
+# FIGURE 2 — DATASET INVENTORY (one page-sized image per potential)
 # Uses a table-style layout: one row per dataset, labels in
 # a separate text column so bars never collide with text.
 # ============================================================
 
-def plot_lambda_coverage(datasets, output_path):
+def _sanitize_potential(pot):
+    """Filesystem/LaTeX-safe filename stem, e.g. 'V4+5' -> 'V4p5'."""
+    return pot.replace("+", "p")
+
+
+def plot_lambda_coverage(datasets, output_dir):
     by_potential = defaultdict(list)
     for d in datasets:
         if d.potential != "UNKNOWN":
@@ -116,16 +141,17 @@ def plot_lambda_coverage(datasets, output_path):
     if not potentials:
         return
 
-    # ── one figure per potential, saved as separate files ───
-    # Then stitch into one tall figure
-    fig_parts = []
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_paths = []
     for pot in potentials:
         dsets = sorted(by_potential[pot], key=lambda x: (x.sector, x.source))
         n = len(dsets)
         row_h = 0.30          # inches per row
         panel_h = max(1.2, n * row_h)
 
-        fig_p, ax = plt.subplots(figsize=(14, panel_h))
+        fig, ax = plt.subplots(figsize=(9, panel_h))
         fs = max(5.5, min(8.5, 180 / max(n, 1)))
 
         for yi, d in enumerate(dsets):
@@ -152,46 +178,17 @@ def plot_lambda_coverage(datasets, output_path):
 
         n_m = sum(1 for d in dsets if d.sector not in ANTIMATTER_SECTORS)
         n_a = n - n_m
-        ax.set_title(f"{pot}   (matter: {n_m}  antimatter: {n_a}  total: {n})",
+        ax.set_title(f"Dataset Inventory: {pot}   (matter: {n_m}  antimatter: {n_a}  total: {n})",
                      fontsize=9, color=NAVY, loc="left", pad=4, fontweight="bold")
-        fig_p.tight_layout(pad=0.4)
-        fig_parts.append(fig_p)
+        fig.tight_layout(pad=0.4)
 
-    # ── combine into one tall figure via savefig to buffer ──
-    import io
-    from PIL import Image as PILImage
+        out_path = output_dir / f"lambda_coverage_{_sanitize_potential(pot)}.png"
+        fig.savefig(out_path, dpi=150, bbox_inches="tight", facecolor=WHITE)
+        plt.close(fig)
+        saved_paths.append(out_path)
 
-    imgs = []
-    for f in fig_parts:
-        buf = io.BytesIO()
-        f.savefig(buf, format="png", dpi=130, bbox_inches="tight", facecolor=WHITE)
-        plt.close(f)
-        buf.seek(0)
-        imgs.append(PILImage.open(buf).copy())
-        buf.close()
-
-    if not imgs:
-        return
-
-    total_w = max(i.width for i in imgs)
-    total_h = sum(i.height for i in imgs) + 40  # 40px gap for title
-    combined = PILImage.new("RGB", (total_w, total_h), (255, 255, 255))
-
-    # Title banner
-    from PIL import ImageDraw, ImageFont
-    draw = ImageDraw.Draw(combined)
-    draw.text((total_w // 2, 10),
-              "Dataset Inventory by Potential  (blue=matter, red=antimatter)",
-              fill=(26, 46, 74), anchor="mt")
-
-    y_off = 40
-    for img in imgs:
-        combined.paste(img, (0, y_off))
-        y_off += img.height
-
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    combined.save(output_path, dpi=(130, 130))
-    print(f"[GAP] Saved lambda coverage chart -> {output_path}")
+    print(f"[GAP] Saved {len(saved_paths)} lambda coverage charts -> {output_dir}/")
+    return saved_paths
 
 
 # ============================================================
@@ -243,9 +240,16 @@ def plot_matter_antimatter_ratio(datasets, output_path):
 # ============================================================
 
 def run_gap_analysis(datasets, figures_dir):
+    n_before = len(datasets)
+    datasets = deduplicate_by_content(datasets)
+    if len(datasets) != n_before:
+        print(f"[GAP] Collapsed {n_before - len(datasets)} duplicate-content "
+              f"datasets (same bound filed under multiple coupling classes) "
+              f"-> {len(datasets)} independent datasets for coverage counting")
+
     figures_dir = Path(figures_dir)
     plot_pair_coverage_matrix(datasets, figures_dir / "gap_analysis" / "pair_coverage_matrix.png")
-    plot_lambda_coverage(datasets,      figures_dir / "gap_analysis" / "lambda_coverage_by_potential.png")
+    plot_lambda_coverage(datasets,      figures_dir / "gap_analysis" / "lambda_coverage_by_potential")
     plot_matter_antimatter_ratio(datasets, figures_dir / "gap_analysis" / "matter_antimatter_ratio.png")
     print(f"\n[GAP] All gap analysis figures saved to {figures_dir}/gap_analysis/")
 

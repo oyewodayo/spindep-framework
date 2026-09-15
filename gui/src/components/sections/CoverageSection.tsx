@@ -13,11 +13,11 @@ interface CoverageSectionProps {
   pairs: AnalysisPair[];
 }
 
-// ─── Color palette for datasets ───────────────────────────────────────────────
+// Color palette for datasets
 const MATTER_PALETTE    = [T.blue,   "#22d3ee", "#818cf8", "#34d399", "#60a5fa"] as const;
 const ANTIMATTER_PALETTE = [T.amber, T.red,     "#f472b6", "#fb923c", "#facc15"] as const;
 
-// ─── Gantt-style λ coverage chart ────────────────────────────────────────────
+// Gantt-style λ coverage chart
 
 function LambdaGantt({ pairs, coupling }: { pairs: AnalysisPair[]; coupling: string }) {
   const relevant = pairs.filter(p => p.coupling === coupling);
@@ -172,7 +172,7 @@ function LambdaGantt({ pairs, coupling }: { pairs: AnalysisPair[]; coupling: str
   );
 }
 
-// ─── Competitive constraint plot ──────────────────────────────────────────────
+// Competitive constraint plot
 // All curves for a coupling on one plot, with overlap bands shaded
 
 function CompetitiveConstraintPlot({
@@ -272,7 +272,7 @@ function CompetitiveConstraintPlot({
   );
 }
 
-// ─── Overlap matrix ───────────────────────────────────────────────────────────
+// Overlap matrix
 
 function OverlapMatrix({ pairs }: { pairs: AnalysisPair[] }) {
   // Build list of all unique (matterDataset, antimatterDataset) combos
@@ -358,7 +358,7 @@ function OverlapMatrix({ pairs }: { pairs: AnalysisPair[] }) {
   );
 }
 
-// ─── Main section ─────────────────────────────────────────────────────────────
+// Main section
 
 export const CoverageSection: React.FC<CoverageSectionProps> = ({ pairs }) => {
   const couplings  = useMemo(() => [...new Set(pairs.map(p => p.coupling))].sort(), [pairs]);

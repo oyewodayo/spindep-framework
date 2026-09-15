@@ -12,9 +12,10 @@ import type {
   NullTestResult,
   NullTestPoint,
   NullTestStatus,
+  GapMatrix,
 } from "../types";
 
-// ─── Generic fetcher ──────────────────────────────────────────────────────────
+// Generic fetcher
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, init);
@@ -24,7 +25,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ─── File downloads ───────────────────────────────────────────────────────────
+// File downloads
 
 function _saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -51,7 +52,7 @@ async function _downloadGet(path: string, fallbackName: string): Promise<void> {
   _saveBlob(await res.blob(), _filenameFromResponse(res, fallbackName));
 }
 
-// ─── Field normalisation: DataPoint ──────────────────────────────────────────
+// Field normalisation: DataPoint
 
 type RawDataPoint = {
   log_lam?: number; logLam?: number;
@@ -69,10 +70,7 @@ function normalisePoint(raw: RawDataPoint): DataPoint {
   };
 }
 
-
-
-
-// ─── Field normalisation: AnalysisPair ────────────────────────────────────────
+// Field normalisation: AnalysisPair
 //
 // The Python server serialises in snake_case. We normalise here — one place,
 // zero leakage into components. Safe defaults ensure nothing crashes against
@@ -88,8 +86,22 @@ export function normalisePair(raw: any): AnalysisPair {
   const pvalW = raw.pval_weighted ?? raw.pval ?? raw.p_value ?? 0;
   const pvalU = raw.pval_uniform  ?? raw.pvalUniform ?? pvalW;
 
-  const mDs = basename(raw.matter_dataset     ?? raw.matterDataset     ?? "unknown");
-  const aDs = basename(raw.antimatter_dataset ?? raw.antimatterDataset ?? "unknown");
+  // dof_effective / pval_weighted_eff etc. come from the autocorrelation-length
+  // correction in statistics.py — the 300 interpolated grid points per pair are
+  // not independent, so treating them as 300 dof overstates significance. These
+  // are the numbers actually worth citing; see reporting.py for the equivalent
+  // PDF-report fix.
+  const dofEff  = raw.dof_effective       ?? raw.dofEffective       ?? undefined;
+  const pvalEff = raw.pval_weighted_eff   ?? raw.pvalEffective      ?? undefined;
+  const autocorr= raw.autocorr_length     ?? raw.autocorrLength     ?? undefined;
+  const ciLow   = raw.aalpha_ci_low       ?? raw.aalphaCiLow        ?? undefined;
+  const ciHigh  = raw.aalpha_ci_high      ?? raw.aalphaCiHigh       ?? undefined;
+
+  // experiment_m/experiment_a is what pipeline.py actually emits (the source
+  // citation key, e.g. "Fadeev2022"); matter_dataset/matterDataset are kept as
+  // fallbacks in case an older or different server payload shape is in use.
+  const mDs = basename(raw.matter_dataset     ?? raw.matterDataset     ?? raw.experiment_m ?? "unknown");
+  const aDs = basename(raw.antimatter_dataset ?? raw.antimatterDataset ?? raw.experiment_a ?? "unknown");
 
   const iClass = raw.interaction_class ?? raw.interactionClass
     ?? raw.sector_class ?? inferInteractionClass(raw.sec_m ?? raw.secM ?? "");
@@ -112,6 +124,11 @@ export function normalisePair(raw: any): AnalysisPair {
     pval:             pvalW,
     pvalUniform:      pvalU,
     dof:              raw.dof             ?? 0,
+    dofEffective:     dofEff,
+    pvalEffective:    pvalEff,
+    autocorrLength:   autocorr,
+    aalphaCiLow:      ciLow,
+    aalphaCiHigh:     ciHigh,
     sigmaM:           raw.sigma_matter     ?? raw.sigmaM   ?? raw.mean_sigma_matter     ?? 0,
     sigmaA:           raw.sigma_antimatter ?? raw.sigmaA   ?? raw.mean_sigma_antimatter ?? 0,
     lambdaMin:        raw.lambda_min      ?? raw.lambdaMin ?? 0,
@@ -131,8 +148,21 @@ export function normaliseResults(raw: any): PipelineResults {
       completed_at:  raw.meta?.completed_at ?? raw.completed_at ?? new Date().toISOString(),
       n_pairs:       raw.meta?.n_pairs      ?? pairs.length,
       n_significant: raw.meta?.n_significant
-        ?? pairs.filter((p: AnalysisPair) => p.pval < 0.05).length,
+        ?? pairs.filter((p: AnalysisPair) => (p.pvalEffective ?? p.pval) < 0.05).length,
     },
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normaliseGapMatrix(raw: any): GapMatrix {
+  return {
+    potentials:        raw.potentials         ?? [],
+    sectors:            raw.sectors            ?? [],
+    sectorLabels:       raw.sector_labels      ?? raw.sectorLabels      ?? {},
+    antimatterSectors:  raw.antimatter_sectors ?? raw.antimatterSectors ?? [],
+    matrix:             raw.matrix             ?? [],
+    maxValue:           raw.max_value          ?? raw.maxValue          ?? 0,
+    totalDatasets:      raw.total_datasets     ?? raw.totalDatasets     ?? 0,
   };
 }
 
@@ -147,7 +177,7 @@ function inferInteractionClass(sec: string): string {
   return "unknown";
 }
 
-// ─── Field normalisation: Provenance ─────────────────────────────────────────
+// Field normalisation: Provenance
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseProvenanceRecord(raw: any): Partial<DatasetRecord> {
@@ -162,7 +192,7 @@ function normaliseProvenanceRecord(raw: any): Partial<DatasetRecord> {
   };
 }
 
-// ─── Field normalisation: Null test ──────────────────────────────────────────
+// Field normalisation: Null test
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseNullTestPoint(raw: any): NullTestPoint {
@@ -177,8 +207,6 @@ function normaliseNullTestPoint(raw: any): NullTestPoint {
       ?? Math.abs(recovered - injected) < 0.1,
   };
 }
-
-
 
 function normaliseNullTestResult(config: NullTestConfig, raw: any): NullTestResult {
   const points: NullTestPoint[] = (raw.points ?? []).map(normaliseNullTestPoint);
@@ -207,7 +235,7 @@ function normaliseNullTestResult(config: NullTestConfig, raw: any): NullTestResu
       : Math.abs(meanRec - meanInj) < 0.05,
   };
 }
-// ─── Config hash ──────────────────────────────────────────────────────────────
+// Config hash
 //
 // Deterministic fingerprint of a run: mode + sorted pair IDs.
 // Used by the history feature to flag runs that used identical configurations.
@@ -232,10 +260,10 @@ export interface UploadSuggestion {
   suggested_dir:     string;
 }
 
-// ─── Public API client ────────────────────────────────────────────────────────
+// Public API client
 
 export const apiClient = {
-  // ── Pipeline ────────────────────────────────────────────────────────────────
+  // Pipeline
 
   /** Submit a new pipeline job → { job_id }. */
   run(mode: PipelineMode = "full"): Promise<{ job_id: string }> {
@@ -256,6 +284,17 @@ export const apiClient = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw = await request<any>(`/api/results/${jobId}`);
     return normaliseResults(raw);
+  },
+
+  /**
+   * Sector x potential coverage matrix, built from the full compiled dataset
+   * registry (not matched pairs) — same source and counting rule as the
+   * matplotlib pair_coverage_matrix.png.
+   */
+  async getGapMatrix(): Promise<GapMatrix> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = await request<any>(`/api/gap-matrix`);
+    return normaliseGapMatrix(raw);
   },
 
   async uploadDatasets(
@@ -282,10 +321,9 @@ export const apiClient = {
     return res.json();
   },
 
-
   
 
-  // ── Status / tree ────────────────────────────────────────────────────────────
+  // Status / tree
 
   /** Lightweight health check — returns null on any network failure. */
   async getStatus(): Promise<ApiStatus | null> {
@@ -301,7 +339,7 @@ export const apiClient = {
     return request<FileTreeNode>("/api/tree");
   },
 
-  // ── Provenance ───────────────────────────────────────────────────────────────
+  // Provenance
 
   /**
    * Optional citation enrichment — GET /api/provenance.
@@ -323,7 +361,7 @@ export const apiClient = {
     }
   },
 
-  // ── Null test ────────────────────────────────────────────────────────────────
+  // Null test
 
   /**
    * Run a null-injection test.
@@ -348,12 +386,9 @@ export const apiClient = {
     return normaliseNullTestResult(cfg, raw);
   },
 
+  // Dataset upload
 
-  // ── Dataset upload ──────────────────────────────────────────────────────────
-
-
-
-  // ── Folder management ──────────────────────────────────────────────────────
+  // Folder management
 
   async createFolder(path: string): Promise<{ created: string }> {
     const res = await fetch(`${API_BASE_URL}/api/datasets/folder`, {
@@ -374,7 +409,6 @@ export const apiClient = {
     if (!res.ok) throw new Error(`Rename failed: ${res.statusText}`);
     return res.json();
   },
-
 
   /**
    * Delete a single CSV from DATA_ROOT by filename.
@@ -413,7 +447,7 @@ export const apiClient = {
     return res.json();
   },
 
-  // ── Export ──────────────────────────────────────────────────────────────────
+  // Export
 
   downloadReport():         Promise<void> { return _downloadGet("/api/export/report", "asymmetry_report.pdf"); },
   downloadSummaryCsv():     Promise<void> { return _downloadGet("/api/export/summary-csv", "asymmetry_summary.csv"); },

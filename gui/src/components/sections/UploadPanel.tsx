@@ -96,7 +96,7 @@ export function UploadPanel({ onSuccess, prominent = false }: UploadPanelProps) 
         onChange={e => handleFiles(Array.from(e.target.files ?? []))}
       />
 
-      {/* ── Idle / dragging ── */}
+      {/* Idle / dragging */}
       {(state === "idle" || state === "dragging") && (
         <>
           <div style={{ fontSize: 24, marginBottom: 8, color: T.muted }}>⬆</div>
@@ -120,12 +120,12 @@ export function UploadPanel({ onSuccess, prominent = false }: UploadPanelProps) 
         </>
       )}
 
-      {/* ── Uploading ── */}
+      {/* Uploading */}
       {state === "uploading" && (
         <p style={{ color: T.textDim }}>Uploading…</p>
       )}
 
-      {/* ── Done ── */}
+      {/* Done */}
       {state === "done" && (
         <>
           <div style={{ color: T.teal, fontSize: 20, marginBottom: 6 }}>✓</div>
@@ -140,7 +140,7 @@ export function UploadPanel({ onSuccess, prominent = false }: UploadPanelProps) 
             </p>
           ))}
 
-          {/* ── Suggestion cards ── */}
+          {/* Suggestion cards */}
           {suggestions
             .filter(s => !organized.includes(s.filename))
             .map(s => (
@@ -206,7 +206,7 @@ export function UploadPanel({ onSuccess, prominent = false }: UploadPanelProps) 
         </>
       )}
 
-      {/* ── Error ── */}
+      {/* Error */}
       {state === "error" && (
         <>
           <p style={{ color: T.red ?? "#e05", marginBottom: 8 }}>✗ {error}</p>

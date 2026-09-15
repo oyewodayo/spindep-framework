@@ -1,5 +1,3 @@
-// ─── Domain Types ─────────────────────────────────────────────────────────────
-
 export type CouplingType = "gAgA" | "gsgs" | "gVgV" | "gpgp" | "gpgs" | string;
 export type PotentialType = "Yukawa" | "power-law" | string;
 export type PipelineMode = "full" | "validate" | "gaps" | "atlas";
@@ -39,9 +37,20 @@ export interface AnalysisPair {
   chi2Weighted: number;     // χ² with per-point curvature weights
   chi2Uniform: number;      // χ² with uniform 10% uncertainty
   chi2Ratio: number;        // chi2Weighted / chi2Uniform — <1 means weighted is more conservative
-  pval: number;             // p-value (weighted) — preferred for thesis
+  pval: number;             // p-value (weighted), nominal — assumes all 300 grid points are
+                             // independent degrees of freedom, which they are not (they're
+                             // interpolated from far fewer real measurements). Use pvalEffective
+                             // for the number actually worth citing.
   pvalUniform: number;      // p-value (uniform)
   dof: number;
+
+  // Autocorrelation-corrected significance (see statistics.py: effective_dof).
+  // Optional because older server payloads may not include them.
+  dofEffective?: number;     // effective dof from the residual autocorrelation length
+  pvalEffective?: number;    // p-value against dofEffective — preferred for thesis
+  autocorrLength?: number;   // autocorrelation length, in grid points
+  aalphaCiLow?: number;      // 95% bootstrap CI lower bound on mean |Aα|
+  aalphaCiHigh?: number;     // 95% bootstrap CI upper bound on mean |Aα|
 
   // Uncertainty estimates
   sigmaM: number;           // mean σ_matter (%)
@@ -61,6 +70,11 @@ export interface PipelineJob {
   log: string[];
   created_at: string;
   completed_at?: string;
+  /** Index into PIPELINE_STEPS[mode] of the phase currently executing,
+   *  advanced server-side by matching print() headers in pipeline.py —
+   *  not estimated from log length. */
+  current_step?: number;
+  total_steps?: number;
 }
 
 export interface PipelineResults {
@@ -87,8 +101,6 @@ export interface ApiStatus {
   datasets_path: string;
 }
 
-// ─── Dataset Provenance ───────────────────────────────────────────────────────
-
 export type ConversionFlag = "none" | "pre-converted" | "unknown";
 
 export interface DatasetRecord {
@@ -112,8 +124,6 @@ export interface DatasetRecord {
   isMatter: boolean;
 }
 
-// ─── Systematic Flags ─────────────────────────────────────────────────────────
-
 export type SystematicSeverity = "ok" | "warn" | "critical";
 
 export interface SystematicFlag {
@@ -123,8 +133,6 @@ export interface SystematicFlag {
   message: string;
   detail: string;
 }
-
-// ─── Coverage / Overlap ───────────────────────────────────────────────────────
 
 export interface LambdaOverlapBand {
   logLamStart: number;
@@ -159,13 +167,28 @@ export interface CoverageCell {
   paired: number;
 }
 
+/**
+ * Raw-dataset coverage matrix — sector (row) x potential (column) counts,
+ * straight from the compiled dataset registry (not matched pairs). Mirrors
+ * gap_analysis.py's plot_pair_coverage_matrix() exactly: same counting rule
+ * (one classified dataset = one count, UNKNOWN-potential rows excluded),
+ * same sort order, same sector/antimatter labelling.
+ */
+export interface GapMatrix {
+  potentials: string[];              // column labels, e.g. "V1a", "V2+3"
+  sectors: string[];                 // row keys, e.g. "ee", "eebar"
+  sectorLabels: Record<string, string>; // display label per sector, e.g. "ee" -> "e-e"
+  antimatterSectors: string[];       // subset of `sectors` that are antimatter
+  matrix: number[][];                // matrix[rowIndex][colIndex] = dataset count
+  maxValue: number;
+  totalDatasets: number;
+}
+
 export interface TooltipPayloadItem {
   name: string;
   value: number;
   color?: string;
 }
-
-// ─── Run History ──────────────────────────────────────────────────────────────
 
 export interface RunSummary {
   nPairs:       number;
@@ -185,8 +208,6 @@ export interface RunRecord {
   pairs:       AnalysisPair[];
   log:         string[];
 }
-
-// ─── Null Test / Injection Framework ─────────────────────────────────────────
 
 export type NullTestStatus = "idle" | "configuring" | "running" | "done" | "error";
 

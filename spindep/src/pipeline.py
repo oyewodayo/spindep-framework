@@ -1,4 +1,3 @@
-# // pipeline.py
 from datetime import datetime
 from pathlib import Path
 from dataclasses import asdict
@@ -20,7 +19,7 @@ from .gap_analysis import run_gap_analysis
 from .constraint_plots import run_constraint_plots
 
 
-def run_pipeline(dataset_root, results_root, json_out=None):  
+def run_pipeline(dataset_root, results_root, json_out=None):
 
     dataset_root = Path(dataset_root)
     results_root = Path(results_root)
@@ -84,14 +83,20 @@ def run_pipeline(dataset_root, results_root, json_out=None):
     # --------------------------------------------------------
     # BUILD MATCHED PAIRS
     # --------------------------------------------------------
+    print("\n" + "=" * 60)
+    print("MATCHING PAIRS")
+    print("=" * 60)
     pairs = build_pairs(datasets)
     print(f"\nFound {len(pairs)} valid pairs")
 
     # --------------------------------------------------------
     # ANALYSIS LOOP
     # --------------------------------------------------------
+    print("\n" + "=" * 60)
+    print("COMPUTING CHI2 & ASYMMETRY")
+    print("=" * 60)
     summary_rows = []
-    gui_pairs    = []  
+    gui_pairs    = []
 
     for matter_ds, antimatter_ds in pairs:
 
@@ -120,17 +125,21 @@ def run_pipeline(dataset_root, results_root, json_out=None):
         g_m  = stats["g_m"]
         g_a  = stats["g_a"]
 
- 
         valid = np.isfinite(g_m) & np.isfinite(g_a)
 
-        chi2_u  = stats["chi2_uniform"]
-        chi2_w  = stats["chi2_weighted"]
-        dof_w   = stats["dof_weighted"]
-        pval_u  = stats["pval_uniform"]
-        pval_w  = stats["pval_weighted"]
-        mean_A  = stats["mean_abs_A"]
-        sigma_m = stats["mean_sigma_m"]
-        sigma_a = stats["mean_sigma_a"]
+        chi2_u     = stats["chi2_uniform"]
+        chi2_w     = stats["chi2_weighted"]
+        dof_w      = stats["dof_weighted"]
+        pval_u     = stats["pval_uniform"]
+        pval_w     = stats["pval_weighted"]
+        mean_A     = stats["mean_abs_A"]
+        sigma_m    = stats["mean_sigma_m"]
+        sigma_a    = stats["mean_sigma_a"]
+        dof_eff    = stats["dof_effective"]
+        pval_w_eff = stats["pval_weighted_eff"]
+        autocorr   = stats["autocorr_length"]
+        ci_low     = stats["aalpha_ci_low"]
+        ci_high    = stats["aalpha_ci_high"]
 
         # --------------------------------------------------
         # BUILD GUI PAYLOAD (downsample for browser)
@@ -155,6 +164,11 @@ def run_pipeline(dataset_root, results_root, json_out=None):
             "chi2Uniform":  float(chi2_u),
             "dof":          int(dof_w),
             "pval":         float(pval_w),
+            "dofEffective": int(dof_eff),
+            "pvalEffective":float(pval_w_eff),
+            "autocorrLength": float(autocorr),
+            "aalphaCiLow":  float(ci_low),
+            "aalphaCiHigh": float(ci_high),
             "sigmaM":       float(sigma_m * 100),
             "sigmaA":       float(sigma_a * 100),
             "lambdaMin":    float(lam_valid.min()),
@@ -206,6 +220,11 @@ def run_pipeline(dataset_root, results_root, json_out=None):
             "p_value_uniform":     pval_u,
             "chi2_weighted":       chi2_w,
             "p_value_weighted":    pval_w,
+            "dof_effective":       dof_eff,
+            "p_value_weighted_eff":pval_w_eff,
+            "autocorr_length":     round(autocorr, 2),
+            "aalpha_ci_low":       round(ci_low, 4),
+            "aalpha_ci_high":      round(ci_high, 4),
             "mean_sigma_m_pct":    round(sigma_m * 100, 1),
             "mean_sigma_a_pct":    round(sigma_a * 100, 1),
             "chi2_ratio":          round(chi2_w / chi2_u if chi2_u > 0 else 1.0, 3),
@@ -215,6 +234,8 @@ def run_pipeline(dataset_root, results_root, json_out=None):
 
         print(f"  chi2_uniform={chi2_u:.1f}  chi2_weighted={chi2_w:.1f}  "
               f"|A|={mean_A:.3f}  sigma_m={sigma_m*100:.1f}%  sigma_a={sigma_a*100:.1f}%")
+        print(f"  dof_effective={dof_eff}  p_weighted_eff={pval_w_eff:.3e}  "
+              f"(autocorr_length={autocorr:.1f} pts)")
 
     # --------------------------------------------------------
     # EXPORT SUMMARY CSV
@@ -223,7 +244,7 @@ def run_pipeline(dataset_root, results_root, json_out=None):
     summary_df.to_csv(tables_dir / "asymmetry_summary.csv", index=False)
 
     # --------------------------------------------------------
-    # EXPORT GUI JSON  ← NEW
+    # EXPORT GUI JSON
     # --------------------------------------------------------
     if json_out and gui_pairs:
         json_path = Path(json_out)
@@ -252,6 +273,9 @@ def run_pipeline(dataset_root, results_root, json_out=None):
     # --------------------------------------------------------
     # GENERATE REPORT
     # --------------------------------------------------------
+    print("\n" + "=" * 60)
+    print("GENERATING REPORT")
+    print("=" * 60)
     if summary_rows:
         timestamp   = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_path = reports_dir / f"asymmetry_report_{timestamp}.pdf"

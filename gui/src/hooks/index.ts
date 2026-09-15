@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { apiClient } from "../api/client";
 import { API_HEALTH_INTERVAL_MS, API_POLL_INTERVAL_MS } from "../constants";
-import { estimateProgress } from "../utils";
 import type { AnalysisPair, JobStatus, PipelineMode } from "../types";
-
-// ─── useApiHealth ──────────────────────────────────────────────────────────────
 
 export function useApiHealth(): boolean {
   const [online, setOnline] = useState(false);
@@ -19,22 +16,24 @@ export function useApiHealth(): boolean {
   return online;
 }
 
-// ─── usePipelineJob ────────────────────────────────────────────────────────────
-
 interface UsePipelineJobReturn {
   log: string[];
   progress: number;
   status: JobStatus;
+  currentStep: number;
+  totalSteps: number;
 }
 
 export function usePipelineJob(
   jobId: string | null,
   onComplete?: () => void
 ): UsePipelineJobReturn {
-  const [log, setLog]           = useState<string[]>([]);
-  const [progress, setProgress] = useState(0);
-  const [status, setStatus]     = useState<JobStatus>("queued");
-  const cancelRef               = useRef(false);
+  const [log, setLog]               = useState<string[]>([]);
+  const [progress, setProgress]     = useState(0);
+  const [status, setStatus]         = useState<JobStatus>("queued");
+  const [currentStep, setCurrentStep] = useState(0);
+  const [totalSteps, setTotalSteps]   = useState(1);
+  const cancelRef                   = useRef(false);
 
   useEffect(() => {
     if (!jobId) return;
@@ -46,10 +45,17 @@ export function usePipelineJob(
           const job = await apiClient.pollJob(jobId);
           if (cancelRef.current) break;
 
+          const total = job.total_steps ?? 1;
+          const step  = job.current_step ?? 0;
           setLog(job.log ?? []);
-          setProgress(estimateProgress(job.log?.length ?? 0));
+          setCurrentStep(step);
+          setTotalSteps(total);
+          // While running, real step-based progress (never 100 until actually
+          // done, so the bar doesn't lie ahead of the last completed phase).
+          setProgress(Math.min(99, Math.round((step / total) * 100)));
 
           if (job.status === "done") {
+            setCurrentStep(total);
             setProgress(100);
             setStatus("done");
             setTimeout(() => onComplete?.(), 600);
@@ -70,10 +76,8 @@ export function usePipelineJob(
     return () => { cancelRef.current = true; };
   }, [jobId, onComplete]);
 
-  return { log, progress, status };
+  return { log, progress, status, currentStep, totalSteps };
 }
-
-// ─── usePipeline ───────────────────────────────────────────────────────────────
 
 interface UsePipelineReturn {
   jobId: string | null;
@@ -124,8 +128,6 @@ export function usePipeline(): UsePipelineReturn {
   return { jobId, mode, pairs, resultsReady, lastLog, startRun, handleComplete };
 }
 
-// ─── useSort ──────────────────────────────────────────────────────────────────
-
 export function useSort<T>(defaultKey: keyof T, defaultDir: "asc" | "desc" = "asc") {
   const [sort, setSort] = useState<{ key: keyof T; direction: "asc" | "desc" }>({
     key: defaultKey,
@@ -143,8 +145,6 @@ export function useSort<T>(defaultKey: keyof T, defaultDir: "asc" | "desc" = "as
   return { sort, toggleSort };
 }
 
-// ─── useCopyToClipboard ────────────────────────────────────────────────────────
-
 export function useCopyToClipboard(resetDelay = 1_600) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -157,10 +157,8 @@ export function useCopyToClipboard(resetDelay = 1_600) {
   return { copiedKey, copy };
 }
 
-// ─── useRunHistory ────────────────────────────────────────────────────────────
-// Persists run records to localStorage so the UI is stateful across refreshes.
-// Each record stores the full AnalysisPair[] so results can be restored.
-
+// stores run records in localStorage (with the full pairs array) so results
+// survive a refresh and can be restored later
 import { buildConfigHash } from "../api/client";
 import type { RunRecord, RunSummary, NullTestConfig, NullTestResult, NullTestStatus, NullTestBattery } from "../types";
 
@@ -267,9 +265,7 @@ export function useRunHistory(): UseRunHistoryReturn {
   return { history, activeRunId, addRun, restoreRun, deleteRun, renameRun, clearHistory };
 }
 
-// ─── useNullTest ──────────────────────────────────────────────────────────────
-// Manages one null-injection job: submit → poll → result.
-
+// runs one null-injection job: submit -> poll -> result
 interface UseNullTestReturn {
   status:   NullTestStatus;
   log:      string[];
@@ -320,9 +316,7 @@ export function useNullTest(): UseNullTestReturn {
   return { status, log, progress, result, run, reset };
 }
 
-// ─── useNullTestBattery ────────────────────────────────────────────────────────
-// Runs a battery of null tests sequentially across multiple injected Aα values.
-
+// runs a battery of null tests sequentially across multiple injected Aα values
 interface UseNullTestBatteryReturn {
   battery:  NullTestBattery | null;
   running:  boolean;

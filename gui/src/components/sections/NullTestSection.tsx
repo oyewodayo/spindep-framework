@@ -20,7 +20,7 @@ interface NullTestSectionProps {
   pairs: AnalysisPair[];
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// Constants
 
 const BATTERY_LEVELS_DEFAULT = [0.0, 0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1.0];
 
@@ -30,7 +30,7 @@ const INJECTION_MODE_DESCRIPTIONS: Record<NullTestConfig["injectionMode"], strin
   shift:   "Add a constant log-space offset to the antimatter curve. Tests additive systematic offsets.",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 function calibrationColor(ok: boolean): string {
   return ok ? T.teal : T.red;
@@ -57,7 +57,7 @@ function sigmaFromPval(pval: number): number {
   return Math.max(0, t - num / den);
 }
 
-// ─── Config Panel ─────────────────────────────────────────────────────────────
+// Config Panel
 
 interface ConfigPanelProps {
   pairs:       AnalysisPair[];
@@ -253,7 +253,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ pairs, onRun, onBattery, isRu
   );
 };
 
-// ─── Single result panel ──────────────────────────────────────────────────────
+// Single result panel
 
 const SingleResultPanel: React.FC<{ result: NullTestResult }> = ({ result }) => {
   const { config, points } = result;
@@ -428,7 +428,7 @@ const SingleResultPanel: React.FC<{ result: NullTestResult }> = ({ result }) => 
   );
 };
 
-// ─── Battery results panel ────────────────────────────────────────────────────
+// Battery results panel
 
 const BatteryResultsPanel: React.FC<{
   battery:  NullTestBattery;
@@ -706,7 +706,7 @@ const BatteryResultsPanel: React.FC<{
   );
 };
 
-// ─── Live log for single test ─────────────────────────────────────────────────
+// Live log for single test
 
 const RunLog: React.FC<{ log: string[]; progress: number }> = ({ log, progress }) => {
   const logRef = useRef<HTMLDivElement>(null);
@@ -738,7 +738,7 @@ const RunLog: React.FC<{ log: string[]; progress: number }> = ({ log, progress }
   );
 };
 
-// ─── Main section ─────────────────────────────────────────────────────────────
+// Main section
 
 export const NullTestSection: React.FC<NullTestSectionProps> = ({ pairs }) => {
   const [mode, setMode]           = useState<"single" | "battery">("single");

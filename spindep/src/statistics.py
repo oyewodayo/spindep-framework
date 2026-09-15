@@ -1,7 +1,7 @@
 """
 statistics.py
 =============
-Statistical tests for matter-antimatter CPT consistency .
+Statistical tests for matter-antimatter CPT consistency.
 
 Additions over v1.0
 -------------------
@@ -305,8 +305,8 @@ def chi_squared_from_datasets(df_m, df_a, lam_grid=None, n_points=300,
       3. Log-linear interpolation of both curves onto grid
       4. Estimate per-point uncertainties from curvature
       5. Compute weighted chi-squared
-      6. Effective DOF correction          ← NEW
-      7. Bootstrap CI on mean |Aα|         ← NEW
+      6. Effective DOF correction
+      7. Bootstrap CI on mean |Aα|
 
     Parameters
     ----------

@@ -267,7 +267,7 @@ python3 main.py
 | Analysis loop | Asymmetry + chi-squared + plots |
 | Report generation | PDF report |
 
-> **TIP:** Runtime for 273 datasets and 7 valid pairs is approximately 30–60 seconds.
+> **TIP:** Runtime for 273 datasets and 10 valid pairs is approximately 30–60 seconds.
 
 ---
 

@@ -3,9 +3,6 @@ import { FileTreeNode } from "../types";
 import { apiClient } from "../api/client";
 import { T } from "../constants";
 
-
-// ─── TreeNode ─────────────────────────────────────────────────────────────────
-
 function TreeNode({
   node,
   relativePath,
@@ -37,7 +34,7 @@ function TreeNode({
   const isFile   = node.type === "file";
   const hasChildren = !isFile && (node.children?.length ?? 0) > 0;
 
-  // ── Outside-click closes menu ──────────────────────────────────────────────
+  // closes the menu on any click outside it
   useEffect(() => {
     if (!menuOpen) return;
     const handler = () => {
@@ -64,7 +61,6 @@ function TreeNode({
     setCreatingFolder(false);
   };
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!confirming) { setConfirming(true); return; }
     try {
@@ -116,12 +112,10 @@ function TreeNode({
     } catch { setFolderCreateError("Failed to create folder"); }
   };
 
-  // ── Row indent & chevron ──────────────────────────────────────────────────
   const indentPx = depth * 14;
 
   return (
     <div>
-      {/* ── Row ── */}
       <div
         style={{
           display:        "flex",
@@ -212,7 +206,6 @@ function TreeNode({
         </button>
       </div>
 
-      {/* ── Children (collapsible) ── */}
       {!isFile && expanded && node.children && node.children.length > 0 && (
         <div>
           {node.children.map(child => (
@@ -243,7 +236,7 @@ function TreeNode({
         </div>
       )}
 
-      {/* ── Context menu (fixed to escape overflow) ── */}
+      {/* fixed positioning so the menu can escape the tree's overflow:hidden */}
       {menuOpen && (
         <div
           style={{
@@ -275,7 +268,6 @@ function TreeNode({
             {isFile ? "📄" : "📁"} {node.name}
           </div>
 
-          {/* ── Main menu ── */}
           {!moving && !creatingFolder && (
             <>
               <button
@@ -333,7 +325,6 @@ function TreeNode({
             </>
           )}
 
-          {/* ── Move picker ── */}
           {moving && (
             <div>
               <div style={{ padding: "8px 12px 4px", color: T.textDim, fontSize: 11, fontWeight: 600 }}>
@@ -376,7 +367,6 @@ function TreeNode({
             </div>
           )}
 
-          {/* ── New subfolder inline input ── */}
           {creatingFolder && (
             <div style={{ padding: "8px 12px" }} onMouseDown={e => e.stopPropagation()}>
               <div style={{ color: T.textDim, fontSize: 11, marginBottom: 6, fontWeight: 600 }}>
@@ -433,8 +423,6 @@ function TreeNode({
     </div>
   );
 }
-
-// ─── FileTree (exported) ──────────────────────────────────────────────────────
 
 interface FileTreeProps {
   node:       FileTreeNode;

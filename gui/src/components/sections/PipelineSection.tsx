@@ -17,7 +17,7 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
   jobId,
   onComplete,
 }) => {
-  const { log, progress, status } = usePipelineJob(jobId, onComplete);
+  const { log, progress, status, currentStep } = usePipelineJob(jobId, onComplete);
   const logRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,7 +27,12 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
   const steps   = PIPELINE_STEPS[mode] ?? PIPELINE_STEPS.full;
   const done    = status === "done";
   const isError = status === "error";
-  const stepIdx = Math.min(Math.floor((progress / 100) * steps.length), steps.length - 1);
+  // Real step index from the backend (matched against pipeline.py's own
+  // print() phase headers as they execute) — not derived from the percentage.
+  // Clamped because `mode` isn't currently threaded through to the backend
+  // (every mode runs the full 7-phase pipeline), so a shorter step list
+  // (e.g. "validate"'s 4 steps) could otherwise index out of range.
+  const stepIdx = Math.min(currentStep, steps.length - 1);
 
   const modeLabel: Record<PipelineMode, string> = {
     full:     "Full Analysis",
