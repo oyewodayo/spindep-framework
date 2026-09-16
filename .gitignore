@@ -8,6 +8,7 @@ env/
 __pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
 
 # Package build
 *.egg-info/
