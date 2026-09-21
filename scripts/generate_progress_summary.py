@@ -6,17 +6,34 @@ Not part of the analysis pipeline; run manually before a supervisor meeting:
 """
 from pathlib import Path
 
+import matplotlib
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import cm
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "spindep_progress_summary.pdf"
+
+# Core Helvetica only covers Latin-1/WinAnsi, so Greek letters (μ, ν, α), the
+# arrow (→), and subscript glyphs used throughout this report render as
+# missing-glyph boxes. DejaVu Sans has full coverage and ships with
+# matplotlib, which is already a project dependency, so no new install step.
+_FONT_DIR = Path(matplotlib.get_data_path()) / "fonts" / "ttf"
+pdfmetrics.registerFont(TTFont("DejaVuSans", str(_FONT_DIR / "DejaVuSans.ttf")))
+pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", str(_FONT_DIR / "DejaVuSans-Bold.ttf")))
+pdfmetrics.registerFont(TTFont("DejaVuSans-Oblique", str(_FONT_DIR / "DejaVuSans-Oblique.ttf")))
+pdfmetrics.registerFont(TTFont("DejaVuSans-BoldOblique", str(_FONT_DIR / "DejaVuSans-BoldOblique.ttf")))
+pdfmetrics.registerFontFamily(
+    "DejaVuSans", normal="DejaVuSans", bold="DejaVuSans-Bold",
+    italic="DejaVuSans-Oblique", boldItalic="DejaVuSans-BoldOblique",
+)
 
 NAVY    = colors.HexColor("#1a2e4a")
 STEEL   = colors.HexColor("#2d6a9f")
@@ -32,25 +49,25 @@ MARGIN = 1.8 * cm
 
 styles = {
     "title": ParagraphStyle("title", fontSize=17, leading=21, textColor=NAVY,
-                             fontName="Helvetica-Bold", alignment=TA_CENTER, spaceAfter=4),
+                             fontName="DejaVuSans-Bold", alignment=TA_CENTER, spaceAfter=4),
     "subtitle": ParagraphStyle("subtitle", fontSize=10.5, leading=14, textColor=STEEL,
-                                fontName="Helvetica-Bold", alignment=TA_CENTER, spaceAfter=10),
+                                fontName="DejaVuSans-Bold", alignment=TA_CENTER, spaceAfter=10),
     "author": ParagraphStyle("author", fontSize=9.5, leading=13, textColor=MUTED,
-                              fontName="Helvetica", alignment=TA_CENTER, spaceAfter=14),
+                              fontName="DejaVuSans", alignment=TA_CENTER, spaceAfter=14),
     "h2": ParagraphStyle("h2", fontSize=12.5, leading=16, textColor=NAVY,
-                          fontName="Helvetica-Bold", spaceBefore=12, spaceAfter=5),
+                          fontName="DejaVuSans-Bold", spaceBefore=12, spaceAfter=5),
     "h3": ParagraphStyle("h3", fontSize=10, leading=13, textColor=STEEL,
-                          fontName="Helvetica-Bold", spaceBefore=8, spaceAfter=2),
+                          fontName="DejaVuSans-Bold", spaceBefore=8, spaceAfter=2),
     "body": ParagraphStyle("body", fontSize=9.3, leading=13.5, textColor=INK,
-                            fontName="Helvetica", spaceAfter=6, alignment=TA_LEFT),
+                            fontName="DejaVuSans", spaceAfter=6, alignment=TA_LEFT),
     "num_item": ParagraphStyle("num_item", fontSize=9.3, leading=13.5, textColor=INK,
-                                fontName="Helvetica", spaceAfter=7, leftIndent=10),
+                                fontName="DejaVuSans", spaceAfter=7, leftIndent=10),
     "table_head": ParagraphStyle("table_head", fontSize=9, leading=11, textColor=WHITE,
-                                  fontName="Helvetica-Bold", alignment=TA_CENTER),
+                                  fontName="DejaVuSans-Bold", alignment=TA_CENTER),
     "table_cell": ParagraphStyle("table_cell", fontSize=9, leading=11, textColor=INK,
-                                  fontName="Helvetica", alignment=TA_CENTER),
+                                  fontName="DejaVuSans", alignment=TA_CENTER),
     "footnote": ParagraphStyle("footnote", fontSize=7.8, leading=10.5, textColor=MUTED,
-                                fontName="Helvetica-Oblique", spaceBefore=6),
+                                fontName="DejaVuSans-Oblique", spaceBefore=6),
 }
 
 
@@ -112,7 +129,7 @@ def build(figures: dict):
     objectives_doing = [
         ("Derive the SME → DM mapping.",
          "Connect the relativistic SME fermion-sector coefficients (bμ, Hμν, dμν) to the "
-         "non-relativistic DM coupling structures (gₛ, gₚ, gᵥ, gₐ) by hand, using the "
+         "non-relativistic DM coupling structures (g<sub>S</sub>, g<sub>P</sub>, g<sub>V</sub>, g<sub>A</sub>) by hand, using the "
          "Foldy–Wouthuysen transformation — not citing the mapping from elsewhere, deriving it, so "
          "that every sign and convention in the final translation table is independently checked rather "
          "than inherited."),
@@ -163,7 +180,7 @@ def build(figures: dict):
         f"helium and the ddμ+ molecular ion, both verified against Cong et al. 2025) that were not being "
         f"counted as antimatter at all were found and corrected. That verification has since been made "
         f"permanent rather than a one-off manual check: content-based deduplication "
-        f"(<font face='Helvetica-Oblique'>deduplicate_by_content</font>) is now built into the plotting, "
+        f"(<font face='DejaVuSans-Oblique'>deduplicate_by_content</font>) is now built into the plotting, "
         f"gap-analysis, and API layers, so datasets with identical underlying CSV content collapse "
         f"automatically to a single independent measurement everywhere the count matters. The current, "
         f"verified total is {figures['antimatter']} antimatter-sector datasets against "
