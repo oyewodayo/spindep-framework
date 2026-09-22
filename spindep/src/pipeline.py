@@ -14,7 +14,7 @@ from .statistics import (
 )
 from .plotting import plot_asymmetry
 from .reporting import generate_report
-from .unit_conversion import convert_lambda_to_metres, audit_units
+from .unit_conversion import convert_lambda_to_metres, audit_units, classify_scale_regime
 from .gap_analysis import run_gap_analysis
 from .constraint_plots import run_constraint_plots
 
@@ -52,6 +52,18 @@ def run_pipeline(dataset_root, results_root, json_out=None):
     print("UNIT AUDIT")
     print("=" * 60)
     audit_units(datasets, verbose=True)
+
+    # --------------------------------------------------------
+    # SCALE REGIME (microscopic / macroscopic / mixed)
+    # --------------------------------------------------------
+    for d in datasets:
+        try:
+            df = load_dataset(d.filepath)
+            df, _, _ = convert_lambda_to_metres(df, d.filename)
+            d.scale_regime = classify_scale_regime(df["lambda_m"])
+        except Exception as e:
+            print(f"[WARN] Could not classify scale regime for {d.filename}: {e}")
+            d.scale_regime = "UNKNOWN"
 
     # --------------------------------------------------------
     # EXPORT REGISTRY

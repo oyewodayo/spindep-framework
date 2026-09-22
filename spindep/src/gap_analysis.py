@@ -18,6 +18,13 @@ from collections import defaultdict
 import hashlib
 import re
 
+try:
+    from .print_style import PrintStyle, apply_print_rcparams, save_figure, INK
+except ImportError:
+    from print_style import PrintStyle, apply_print_rcparams, save_figure, INK
+
+apply_print_rcparams()
+
 
 def deduplicate_by_content(datasets):
     """Collapse datasets whose underlying CSV is byte-identical (the same
@@ -25,14 +32,25 @@ def deduplicate_by_content(datasets):
     potential -- deliberate in the upstream Cong et al. dataset) to a
     single representative, so coverage counts reflect independent
     measurements rather than coupling-class multiplicity."""
-    seen_hashes = set()
-    deduped = []
+    #
+    # Which copy represents the group matters: a copy filed under a coupling
+    # class whose filename carries no potential token (e.g. gpgp/Kimball_2010
+    # ... .csv, missing the "3" prefix its gVgV twin has) parses as UNKNOWN
+    # and is dropped downstream. Taking whichever copy arrives first made the
+    # result depend on directory traversal order, which differs between
+    # filesystems -- V2+3 came out as 18 datasets on ext4 and 25 on NTFS from
+    # the same files. Always prefer a labelled copy over an UNKNOWN one.
+    by_hash  = {}
+    order    = []
     for d in datasets:
         content_hash = hashlib.md5(Path(d.filepath).read_bytes()).hexdigest()
-        if content_hash not in seen_hashes:
-            seen_hashes.add(content_hash)
-            deduped.append(d)
-    return deduped
+        kept = by_hash.get(content_hash)
+        if kept is None:
+            by_hash[content_hash] = d
+            order.append(content_hash)
+        elif kept.potential == "UNKNOWN" and d.potential != "UNKNOWN":
+            by_hash[content_hash] = d
+    return [by_hash[h] for h in order]
 
 NAVY    = "#1a2e4a"
 STEEL   = "#2d6a9f"
@@ -90,7 +108,9 @@ def plot_pair_coverage_matrix(datasets, output_path):
             matrix[sectors.index(sec), potentials.index(pot)] = cnt
 
     row_colors = [CRIMSON if s in ANTIMATTER_SECTORS else STEEL for s in sectors]
-    fig, ax = plt.subplots(figsize=(max(12, len(potentials)*0.9), max(8, len(sectors)*0.45)))
+    fig_w = max(12, len(potentials)*0.9)
+    fig, ax = plt.subplots(figsize=(fig_w, max(8, len(sectors)*0.45)))
+    ps = PrintStyle(fig_w)
     cmap = LinearSegmentedColormap.from_list("cov", [LIGHT, STEEL, NAVY], N=256)
     im = ax.imshow(matrix, aspect="auto", cmap=cmap, vmin=0, vmax=max(matrix.max(), 1))
     for si in range(len(sectors)):
@@ -98,25 +118,30 @@ def plot_pair_coverage_matrix(datasets, output_path):
             val = matrix[si, pi]
             if val > 0:
                 c = WHITE if val > matrix.max() * 0.5 else NAVY
-                ax.text(pi, si, str(val), ha="center", va="center", fontsize=7, color=c, fontweight="bold")
+                ax.text(pi, si, str(val), ha="center", va="center",
+                        fontsize=ps.pt(7), color=c, fontweight="bold")
     ax.set_xticks(range(len(potentials)))
-    ax.set_xticklabels(potentials, fontsize=8, rotation=45, ha="right")
+    ax.set_xticklabels(potentials, fontsize=ps.pt(8), rotation=45, ha="right")
     ax.set_yticks(range(len(sectors)))
-    ax.set_yticklabels([str(SECTOR_LABELS.get(s, s)) for s in sectors], fontsize=8)
+    ax.set_yticklabels([str(SECTOR_LABELS.get(s, s)) for s in sectors], fontsize=ps.pt(8))
     for tick, color in zip(ax.get_yticklabels(), row_colors):
         tick.set_color(color)
-    ax.set_xlabel("Interaction Potential", fontsize=10, color=NAVY)
-    ax.set_ylabel("Fermion Sector", fontsize=10, color=NAVY)
-    ax.set_title("Dataset Coverage: Potential x Fermion Sector", fontsize=11, color=NAVY, pad=12)
+    ax.set_xlabel("Interaction Potential", fontsize=ps.pt(9.5), color=INK)
+    ax.set_ylabel("Fermion Sector", fontsize=ps.pt(9.5), color=INK)
+    ax.set_title("Dataset Coverage: Potential x Fermion Sector",
+                 fontsize=ps.pt(10.5), color=INK, pad=ps.pt(10))
     ax.legend(handles=[
         mpatches.Patch(color=STEEL,   label="Matter sector"),
         mpatches.Patch(color=CRIMSON, label="Antimatter sector"),
         mpatches.Patch(color=LIGHT,   label="No data (gap)"),
-    ], loc="upper right", fontsize=8, framealpha=0.9)
-    plt.colorbar(im, ax=ax, label="Number of datasets", shrink=0.6)
+    ], loc="upper right", fontsize=ps.pt(8), framealpha=1.0, edgecolor=INK)
+    cbar = plt.colorbar(im, ax=ax, shrink=0.6)
+    cbar.set_label("Number of datasets", fontsize=ps.pt(8.5), color=INK)
+    cbar.ax.tick_params(labelsize=ps.pt(7.5), width=ps.pt(0.7),
+                        length=ps.pt(3), color=INK, labelcolor=INK)
+    cbar.outline.set_linewidth(ps.pt(0.7))
     fig.tight_layout()
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight", facecolor=WHITE)
+    save_figure(fig, output_path, style=ps)
     plt.close(fig)
     print(f"[GAP] Saved pair coverage matrix -> {output_path}")
 
@@ -152,7 +177,8 @@ def plot_lambda_coverage(datasets, output_dir):
         panel_h = max(1.2, n * row_h)
 
         fig, ax = plt.subplots(figsize=(9, panel_h))
-        fs = max(5.5, min(8.5, 180 / max(n, 1)))
+        ps = PrintStyle(9)
+        fs = ps.pt(max(5.5, min(8.5, 180 / max(n, 1))))
 
         for yi, d in enumerate(dsets):
             is_anti = d.sector in ANTIMATTER_SECTORS
@@ -160,7 +186,7 @@ def plot_lambda_coverage(datasets, output_dir):
             hatch   = "///" if is_anti else ""
             ax.barh(yi, 1, left=0, height=0.7,
                     color=color, alpha=0.75,
-                    hatch=hatch, edgecolor=NAVY, linewidth=0.4)
+                    hatch=hatch, edgecolor=INK, linewidth=ps.pt(0.5))
 
         # Labels: truncated to avoid overflow
         def lbl(d):
@@ -179,11 +205,12 @@ def plot_lambda_coverage(datasets, output_dir):
         n_m = sum(1 for d in dsets if d.sector not in ANTIMATTER_SECTORS)
         n_a = n - n_m
         ax.set_title(f"Dataset Inventory: {pot}   (matter: {n_m}  antimatter: {n_a}  total: {n})",
-                     fontsize=9, color=NAVY, loc="left", pad=4, fontweight="bold")
+                     fontsize=ps.pt(9), color=INK, loc="left",
+                     pad=ps.pt(4), fontweight="bold")
         fig.tight_layout(pad=0.4)
 
         out_path = output_dir / f"lambda_coverage_{_sanitize_potential(pot)}.png"
-        fig.savefig(out_path, dpi=150, bbox_inches="tight", facecolor=WHITE)
+        save_figure(fig, out_path, style=ps)
         plt.close(fig)
         saved_paths.append(out_path)
 
@@ -213,26 +240,87 @@ def plot_matter_antimatter_ratio(datasets, output_path):
     x = np.arange(len(all_sectors))
     w = 0.38
 
-    fig, ax = plt.subplots(figsize=(max(10, len(all_sectors)), 5))
-    ax.bar(x - w/2, m_vals, w, color=STEEL,   label="Matter sector",     edgecolor=NAVY, linewidth=0.7)
-    ax.bar(x + w/2, a_vals, w, color=CRIMSON, label="Antimatter sector", edgecolor=NAVY, linewidth=0.7, alpha=0.85)
+    fig_w = max(10, len(all_sectors))
+    fig, ax = plt.subplots(figsize=(fig_w, 5))
+    ps = PrintStyle(fig_w)
+    ax.bar(x - w/2, m_vals, w, color=STEEL,   label="Matter sector",
+           edgecolor=INK, linewidth=ps.pt(0.7))
+    ax.bar(x + w/2, a_vals, w, color=CRIMSON, label="Antimatter sector",
+           edgecolor=INK, linewidth=ps.pt(0.7))
     for xi, av in zip(x, a_vals):
         if av == 0:
-            ax.annotate("GAP", xy=(xi + w/2, 0.15), fontsize=7, color=CRIMSON, ha="center", fontweight="bold")
+            ax.annotate("GAP", xy=(xi + w/2, 0.15), fontsize=ps.pt(7),
+                        color=CRIMSON, ha="center", fontweight="bold")
     ax.set_xticks(x)
-    ax.set_xticklabels([str(SECTOR_LABELS.get(s, s)) for s in all_sectors], rotation=35, ha="right", fontsize=9)
-    ax.set_ylabel("Number of datasets", fontsize=10)
-    ax.set_title("Matter vs Antimatter Dataset Coverage per Fermion Sector\n(GAP = no antimatter data)", fontsize=11, color=NAVY)
-    ax.legend(fontsize=9)
+    ax.set_xticklabels([str(SECTOR_LABELS.get(s, s)) for s in all_sectors],
+                       rotation=35, ha="right", fontsize=ps.pt(8.5))
+    ax.set_ylabel("Number of datasets", fontsize=ps.pt(9.5), color=INK)
+    ax.tick_params(labelsize=ps.pt(8.5), width=ps.pt(0.8), color=INK, labelcolor=INK)
+    ax.set_title("Matter vs Antimatter Dataset Coverage per Fermion Sector\n(GAP = no antimatter data)", fontsize=ps.pt(10.5), color=INK)
+    ax.legend(fontsize=ps.pt(8.5), framealpha=1.0, edgecolor=INK)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.set_facecolor(LIGHT)
     fig.patch.set_facecolor(WHITE)
     fig.tight_layout()
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight", facecolor=WHITE)
+    save_figure(fig, output_path, style=ps)
     plt.close(fig)
     print(f"[GAP] Saved matter/antimatter ratio -> {output_path}")
+
+
+# ============================================================
+# FIGURE 4 — MICROSCOPIC vs MACROSCOPIC SCALE REGIME
+# ============================================================
+
+REGIME_COLORS = {
+    "microscopic": CRIMSON,
+    "macroscopic": STEEL,
+    "mixed":       "#8a8a8a",
+    "UNKNOWN":     LIGHT,
+}
+
+def plot_scale_regime_coverage(datasets, output_path):
+    """Bar chart of dataset counts by microscopic/macroscopic/mixed
+    scale regime (see unit_conversion.classify_scale_regime), split
+    by coupling type (gAgA, gVgV, ...)."""
+    counts = defaultdict(lambda: defaultdict(int))
+    regimes_seen = set()
+    for d in datasets:
+        regime = getattr(d, "scale_regime", "UNKNOWN")
+        counts[d.coupling][regime] += 1
+        regimes_seen.add(regime)
+
+    couplings = sorted(counts.keys())
+    regime_order = [r for r in ("macroscopic", "microscopic", "mixed", "UNKNOWN") if r in regimes_seen]
+    x = np.arange(len(couplings))
+    n_regimes = len(regime_order)
+    w = 0.8 / max(n_regimes, 1)
+
+    fig_w = max(8, len(couplings) * 1.3)
+    fig, ax = plt.subplots(figsize=(fig_w, 5))
+    ps = PrintStyle(fig_w)
+    for i, regime in enumerate(regime_order):
+        vals = [counts[c][regime] for c in couplings]
+        offset = (i - (n_regimes - 1) / 2) * w
+        ax.bar(x + offset, vals, w, color=REGIME_COLORS.get(regime, "#cccccc"),
+               edgecolor=INK, linewidth=ps.pt(0.6), label=regime)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(couplings, fontsize=ps.pt(8.5))
+    ax.set_ylabel("Number of datasets", fontsize=ps.pt(9.5), color=INK)
+    ax.tick_params(labelsize=ps.pt(8.5), width=ps.pt(0.8), color=INK, labelcolor=INK)
+    ax.set_title(f"Dataset Scale Regime by Coupling\n"
+                 f"(microscopic: λ < {1e-6:.0e} m, macroscopic: λ ≥ {1e-6:.0e} m, by majority of points)",
+                 fontsize=ps.pt(10.5), color=INK)
+    ax.legend(fontsize=ps.pt(8.5), framealpha=1.0, edgecolor=INK)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.set_facecolor(LIGHT)
+    fig.patch.set_facecolor(WHITE)
+    fig.tight_layout()
+    save_figure(fig, output_path, style=ps)
+    plt.close(fig)
+    print(f"[GAP] Saved scale regime coverage -> {output_path}")
 
 
 # ============================================================
@@ -242,6 +330,14 @@ def plot_matter_antimatter_ratio(datasets, output_path):
 def run_gap_analysis(datasets, figures_dir):
     n_before = len(datasets)
     datasets = deduplicate_by_content(datasets)
+
+    # The same curve-level exclusions the constraint atlas applies, so the
+    # coverage counts and the figures describe the same set of bounds.
+    try:
+        from .constraint_plots import drop_excluded_duplicates
+    except ImportError:
+        from constraint_plots import drop_excluded_duplicates
+    datasets = drop_excluded_duplicates(datasets, verbose=False)
     if len(datasets) != n_before:
         print(f"[GAP] Collapsed {n_before - len(datasets)} duplicate-content "
               f"datasets (same bound filed under multiple coupling classes) "
@@ -251,6 +347,7 @@ def run_gap_analysis(datasets, figures_dir):
     plot_pair_coverage_matrix(datasets, figures_dir / "gap_analysis" / "pair_coverage_matrix.png")
     plot_lambda_coverage(datasets,      figures_dir / "gap_analysis" / "lambda_coverage_by_potential")
     plot_matter_antimatter_ratio(datasets, figures_dir / "gap_analysis" / "matter_antimatter_ratio.png")
+    plot_scale_regime_coverage(datasets, figures_dir / "gap_analysis" / "scale_regime_coverage.png")
     print(f"\n[GAP] All gap analysis figures saved to {figures_dir}/gap_analysis/")
 
 
