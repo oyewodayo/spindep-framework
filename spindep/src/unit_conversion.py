@@ -164,6 +164,52 @@ def convert_lambda_to_metres(df, filename: str, verbose: bool = False):
 
 
 # ============================================================
+# MICROSCOPIC / MACROSCOPIC CLASSIFICATION
+# ============================================================
+
+# Boundary between "microscopic" (atomic/nuclear/collider-probed) and
+# "macroscopic" (bulk-matter, Dobrescu-Mocioiu-style) interaction ranges.
+# 1 um is the conventional cutoff in the Yukawa-force literature (e.g.
+# Adelberger/Eot-Wash reviews): below it, bounds come from atomic, nuclear
+# or collider physics; above it, from torsion-balance-style experiments.
+SCALE_REGIME_THRESHOLD_M = 1e-6
+
+
+def classify_scale_regime(lambda_m_values, threshold_m: float = SCALE_REGIME_THRESHOLD_M) -> str:
+    """
+    Classify a dataset's interaction-range (lambda) values as
+    'microscopic', 'macroscopic', or 'mixed', by majority vote.
+
+    Parameters
+    ----------
+    lambda_m_values : array-like
+        Lambda values already converted to metres.
+    threshold_m : float
+        Boundary between microscopic and macroscopic, in metres.
+
+    Returns
+    -------
+    str
+        'microscopic' if >50% of points have lambda < threshold_m,
+        'macroscopic' if >50% have lambda >= threshold_m,
+        'mixed' on an exact 50/50 split, 'UNKNOWN' if there are no points.
+    """
+    lam = np.asarray(lambda_m_values, dtype=float)
+    lam = lam[np.isfinite(lam) & (lam > 0)]
+
+    if lam.size == 0:
+        return "UNKNOWN"
+
+    frac_micro = np.mean(lam < threshold_m)
+
+    if frac_micro > 0.5:
+        return "microscopic"
+    if frac_micro < 0.5:
+        return "macroscopic"
+    return "mixed"
+
+
+# ============================================================
 # AUDIT ALL DATASETS
 # ============================================================
 

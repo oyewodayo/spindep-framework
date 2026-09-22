@@ -7,6 +7,7 @@ Handles all Dobrescu-Mocioiu potentials V1-V16 across all couplings:
 from pathlib import Path
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 import re
 
@@ -26,6 +27,16 @@ class ConstraintDataset:
     sector: str
     contains_antimatter: bool
     label: str
+    # Populated later, once the CSV's lambda column has been loaded and
+    # unit-converted (see pipeline.run_pipeline) -- not known at parse time.
+    scale_regime: str = "UNKNOWN"
+    # Which quantity the second CSV column holds. Most of the database is a
+    # coupling bound |g|; the V1_alpha_data family is |alpha|, the Yukawa
+    # strength relative to gravity ("presented in unified units, i.e.
+    # lambda (eV) and |alpha| (dimensionless)" -- datasets/normalized/V1/
+    # V1_data.md). The two differ by ~37 decades and must never share a
+    # y-axis. See NORMALISATION_LABELS in constraint_plots.py.
+    normalisation: str = "g"
 
 
 # ============================================================
@@ -514,6 +525,18 @@ def extract_sector(parts, coupling=None):
 # COUPLING AND INTERACTION CLASS
 # ============================================================
 
+# Directories whose CSVs hold |alpha| rather than |g|.
+ALPHA_DATA_DIR_SUFFIX = "_alpha_data"
+
+
+def detect_normalisation(filepath):
+    """'alpha' for the gravity-normalised families, otherwise 'g'."""
+    for part in Path(filepath).parts:
+        if part.lower().endswith(ALPHA_DATA_DIR_SUFFIX):
+            return "alpha"
+    return "g"
+
+
 def extract_coupling_and_class(filepath):
     parts = filepath.parts
     try:
@@ -542,7 +565,12 @@ def build_label(source, sector):
 
 def extract_year(parts):
     for p in parts:
-        if re.match(r"^\d{4}$", p):
+        # A trailing letter marks one of several bounds from the same
+        # paper ("2023a", "2023b"). Requiring a bare 4-digit token threw
+        # it away and, with it, the year: all three Clayburn 2023 files
+        # collapsed to the source "Clayburn", so they could only be told
+        # apart in a legend by appending their whole filename.
+        if re.match(r"^\d{4}[a-z]?$", p):
             return p
     # spindep-convention fuses {Author}{Year} with no separator (e.g.
     # "Smith2024"); fall back to a trailing 4-digit year on any alpha token.
@@ -572,7 +600,13 @@ def extract_author(parts):
         if re.match(r"^g[sVAp][a-zA-Z]{0,3}$", p):
             continue
         if any(c.isalpha() for c in p):
-            author = re.sub(r"^\d+[a-z]?", "", p)
+            # Strip the leading potential token. "1a" is the only one that
+            # carries a letter, so only that letter may be consumed: a bare
+            # r"^\d+[a-z]?" also ate the first letter of a lower-case author
+            # ("910guigue" -> "uigue", "2ledbetter" -> "edbetter").
+            author = re.sub(r"^1a(?=[A-Za-z])", "", p)
+            if author == p:
+                author = re.sub(r"^\d+", "", p)
             # spindep-convention fused "{Author}{Year}" (e.g. "Smith2024")
             author = re.sub(r"\d{4}$", "", author)
             if author:
@@ -601,6 +635,69 @@ FILENAME_POTENTIAL_OVERRIDES = {
 
 
 # ============================================================
+# DIRECTORY / FILENAME SECTOR CROSS-CHECK
+# ============================================================
+
+# Two branches of the tree carry a third directory level naming the sector:
+# gpgs/nucleon-nucleon/ -- g_p g_s has asymmetric vertices, so which nucleon
+# carries the pseudoscalar coupling is a different bound -- and
+# gAgA/lepton-nucleon/. Nothing read that level, which is how a file named
+# "..._nN.csv" came to sit in proton-nucleon/ and be plotted as an n-N bound.
+# The directory is authoritative where the filename is merely generic, and a
+# check on it otherwise.
+SECTOR_DIR_HINTS = {
+    "neutron-nucleon":               ("nN",),
+    "proton-nucleon":                ("pN",),
+    "electron-neutron":              ("en",),
+    "electron-nucleon":              ("eN",),
+    "electron-proton_or_antiproton": ("ep", "epbar"),
+}
+
+# Filename tokens that say "a nucleon" without saying which one.
+GENERIC_NUCLEON_TOKENS = {"NN", "N-N", "N", "nucleon"}
+
+
+def _sector_dir_hint(filepath):
+    """The sector-naming directory on this path, if there is one."""
+    for part in Path(filepath).parts:
+        expected = SECTOR_DIR_HINTS.get(part.lower())
+        if expected:
+            return part, expected
+    return None, None
+
+
+def reconcile_sector_with_directory(sector, sector_raw, filepath, name):
+    """Reconcile the sector read from the filename with its directory.
+
+    A generic filename token ("NN") defers to the directory, which is
+    strictly more specific. A specific token that contradicts the directory
+    is left as-is but reported: only the source publication can say which of
+    the two is wrong, and silently trusting either would be a guess.
+    """
+    folder, expected = _sector_dir_hint(filepath)
+    if expected is None:
+        return sector
+
+    # Astrophysical bounds are filed by the particles they constrain, not by
+    # the nucleon pairing these directories describe -- not comparable.
+    if sector.endswith("astro"):
+        return sector
+
+    if sector_raw in GENERIC_NUCLEON_TOKENS:
+        if sector != expected[0]:
+            print(f"[SECTOR] {name}: generic {sector_raw!r} resolved to "
+                  f"{expected[0]!r} by {folder}/ (filename alone gave "
+                  f"{sector!r})")
+        return expected[0]
+
+    if sector not in expected:
+        print(f"[WARN] {name}: filename says sector {sector!r} but the file "
+              f"sits in {folder}/, which expects "
+              f"{' or '.join(repr(e) for e in expected)}")
+    return sector
+
+
+# ============================================================
 # MAIN PARSE FUNCTION
 # ============================================================
 
@@ -622,6 +719,8 @@ def parse_dataset(filepath):
         coupling, interaction_class  = extract_coupling_and_class(filepath)
 
         # ── Sector resolution (priority order) ────────────────
+        sector_raw = None
+
         if name_clean in FILENAME_SECTOR_OVERRIDES:
             sector, contains_antimatter = FILENAME_SECTOR_OVERRIDES[name_clean]
 
@@ -643,6 +742,16 @@ def parse_dataset(filepath):
             if sector not in KNOWN_SECTORS:
                 print(f"[WARN] Unrecognized sector {sector!r} in {name}")
 
+        # The directory can be more specific than the filename, and disagree
+        # with it. A hand-curated override keeps its antimatter flag unless
+        # the sector itself is revised here.
+        reconciled = reconcile_sector_with_directory(
+            sector, sector_raw, filepath, name
+        )
+        if reconciled != sector:
+            sector = reconciled
+            contains_antimatter = sector in ANTIMATTER_SECTORS
+
         source = f"{author}{year}" if year != "UNKNOWN" else author
         label  = build_label(source, sector)
 
@@ -652,6 +761,7 @@ def parse_dataset(filepath):
             coupling=coupling,
             interaction_class=interaction_class,
             potential=potential,
+            normalisation=detect_normalisation(filepath),
             source=source,
             sector=sector,
             contains_antimatter=contains_antimatter,
@@ -670,7 +780,16 @@ def parse_dataset(filepath):
 def discover_datasets(root):
     root = Path(root).resolve()
     datasets = []
-    for filepath in root.rglob("*.csv"):
+    # rglob yields directory entries in filesystem order: alphabetical on
+    # NTFS, hash order on ext4. Downstream deduplication picks one
+    # representative per duplicated CSV, so an unsorted walk made the dataset
+    # counts differ between platforms for the same files.
+    #
+    # Sorted by as_posix(), not by the Path objects themselves: comparing
+    # Paths is case-insensitive on Windows and case-sensitive on POSIX, so
+    # "gVgV" sorts before "gsgs" on one and after it on the other -- which
+    # would leave the choice of representative platform-dependent again.
+    for filepath in sorted(root.rglob("*.csv"), key=lambda p: p.as_posix()):
         parsed = parse_dataset(filepath)
         if parsed is not None:
             datasets.append(parsed)
@@ -681,12 +800,46 @@ def discover_datasets(root):
 # LOAD CSV DATA
 # ============================================================
 
+# A boundary sentinel is a row the original figure used to close the shaded
+# excluded region, not a measured bound: the same lambda as the first real
+# point, with |g| set to a round "infinity" such as 1e+20. Detected by shape
+# rather than by value, so an unusually large but genuine bound is safe.
+SENTINEL_JUMP_FACTOR = 1e5      # >5 decades above its neighbour
+SENTINEL_LAMBDA_RATIO = 1.023   # at the same lambda, within ~0.01 decades
+
+
+def _strip_boundary_sentinel(df):
+    """Drop a leading or trailing plot-boundary marker, if present.
+
+    Checked at both ends because which end it lands on depends on the
+    direction the file was written in. Only ever removes a single row.
+    """
+    for first, second, keep in ((0, 1, slice(1, None)), (-1, -2, slice(None, -1))):
+        if len(df) < 3:
+            break
+        lam = df["lambda_m"].iloc
+        g = df["coupling_abs"].iloc
+        if g.__getitem__(second) <= 0 or lam.__getitem__(first) <= 0:
+            continue
+        ratio = lam.__getitem__(second) / lam.__getitem__(first)
+        same_lambda = 1 / SENTINEL_LAMBDA_RATIO < ratio < SENTINEL_LAMBDA_RATIO
+        towering = g.__getitem__(first) > g.__getitem__(second) * SENTINEL_JUMP_FACTOR
+        if same_lambda and towering:
+            return df.iloc[keep].reset_index(drop=True)
+    return df
+
+
 def load_dataset(filepath):
     df = pd.read_csv(
         filepath,
         header=None,
         names=["lambda_m", "coupling_abs"]
     )
-    df = df.apply(pd.to_numeric, errors="coerce").dropna()
+    df = df.apply(pd.to_numeric, errors="coerce")
+    # "Inf" in a CSV survives to_numeric as a float infinity rather than NaN,
+    # and passes a ">0" test, so it reaches the plots and any statistics
+    # computed downstream. One file (V11_Vasilakis_2009_n-n) carries ten.
+    df = df.replace([np.inf, -np.inf], np.nan).dropna()
     df = df[(df["lambda_m"] > 0) & (df["coupling_abs"] > 0)]
-    return df.sort_values("lambda_m").reset_index(drop=True)
+    df = df.sort_values("lambda_m").reset_index(drop=True)
+    return _strip_boundary_sentinel(df)

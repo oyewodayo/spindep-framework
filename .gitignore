@@ -26,3 +26,7 @@ results/
 personal-note.md
 personal-note.ipynb
 statistics-breakdown.ipynb
+
+# macOS / Jupyter cruft
+.DS_Store
+.ipynb_checkpoints/
