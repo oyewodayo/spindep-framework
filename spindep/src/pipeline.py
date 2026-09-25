@@ -16,7 +16,7 @@ from .plotting import plot_asymmetry
 from .reporting import generate_report
 from .unit_conversion import convert_lambda_to_metres, audit_units, classify_scale_regime
 from .gap_analysis import run_gap_analysis
-from .constraint_plots import run_constraint_plots
+from .constraint_plots import run_constraint_plots, drop_excluded_from_analysis
 
 
 def run_pipeline(dataset_root, results_root, json_out=None):
@@ -66,9 +66,27 @@ def run_pipeline(dataset_root, results_root, json_out=None):
             d.scale_regime = "UNKNOWN"
 
     # --------------------------------------------------------
-    # EXPORT REGISTRY
+    # HOLD EXCLUDED DATASETS OUT OF THE ANALYSIS
     # --------------------------------------------------------
-    registry = pd.DataFrame([asdict(d) for d in datasets])
+    # The registry below records every compiled dataset, excluded ones
+    # included, so the count of what was gathered stays auditable. Only
+    # `datasets` -- the kept half -- reaches gap analysis, the atlas,
+    # pair matching and the asymmetry figures.
+    print("\n" + "=" * 60)
+    print("EXCLUSIONS")
+    print("=" * 60)
+    datasets, excluded = drop_excluded_from_analysis(datasets)
+    print(f"Compiled {len(datasets) + len(excluded)} | "
+          f"excluded {len(excluded)} | analysing {len(datasets)}")
+
+    # --------------------------------------------------------
+    # EXPORT REGISTRY  (all compiled datasets, excluded flagged)
+    # --------------------------------------------------------
+    registry = pd.DataFrame([asdict(d) for d in datasets + excluded])
+    registry["excluded"] = registry["excluded_reason"] != ""
+    registry = registry.sort_values(
+        ["excluded", "coupling", "potential", "filename"]
+    )
     registry.to_csv(tables_dir / "dataset_registry.csv", index=False)
 
     # --------------------------------------------------------

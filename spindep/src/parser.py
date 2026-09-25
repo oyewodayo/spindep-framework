@@ -37,6 +37,10 @@ class ConstraintDataset:
     # V1_data.md). The two differ by ~37 decades and must never share a
     # y-axis. See NORMALISATION_LABELS in constraint_plots.py.
     normalisation: str = "g"
+    # Non-empty when the dataset is compiled into the registry but held out
+    # of the physics analysis. Set in pipeline.run_pipeline from
+    # constraint_plots.EXCLUDED_FROM_ANALYSIS; the text is the stated reason.
+    excluded_reason: str = ""
 
 
 # ============================================================
@@ -387,7 +391,15 @@ POTENTIAL_PREFIX_MAP = {
     "16":     "V16",
     "14":     "V14",
     "8":      "V8",
-    "3":      "V2+3",   # V3 dipole-dipole spin-spin
+    "23":     "V2+3",   # e.g. 23Cong_2025: upstream records this as V2+V3
+    # A bare "3" prefix is V3 alone, NOT the V2+V3 combination. Verified
+    # against the source database's curation records: all 36 of the
+    # 3-prefixed files that carry an api/v1/records entry are labelled
+    # "V3" there, and six papers (Ficek 2017/2018, Almasi 2020, Cong 2025,
+    # Kimball 2010, Ledbetter 2013) publish BOTH a 2- and a 3-prefixed
+    # curve in the same coupling and sector, differing by up to 27 decades
+    # -- two separable bounds, so "3" cannot mean the inseparable pair.
+    "3":      "V3",
     "2":      "V2",
     "1":      "V1",
     "1a":     "V1a",    # astrophysical combined
@@ -430,13 +442,13 @@ def extract_potential(parts, filepath=None):
     # ── 2. Leading digit(s) on first part ─────────────────────
     # Match patterns like: 45Ficek, 910Crescini, 1213Foo, 451Wu, 15Hunter, 8Ji
     # Pure standalone numeric first token: "451", "45", "1a", "8" etc.
-    m = re.match(r"^(1213|910|451|45|15|16|14|13|12|11|10|1a|8|7|6|5|4|3|2|1)$", first)
+    m = re.match(r"^(1213|910|451|45|23|15|16|14|13|12|11|10|1a|8|7|6|5|4|3|2|1)$", first)
     if m:
         prefix = m.group(1)
         return POTENTIAL_PREFIX_MAP.get(prefix, f"V{prefix}")
 
     # Prefix attached directly to author: "45Ficek", "910Crescini", "8Ji"
-    m = re.match(r"^(1213|910|451|45|15|16|14|13|12|11|10|1a|8|7|6|5|4|3|2|1)([A-Za-z])", first)
+    m = re.match(r"^(1213|910|451|45|23|15|16|14|13|12|11|10|1a|8|7|6|5|4|3|2|1)([A-Za-z])", first)
     if m:
         prefix = m.group(1)
         return POTENTIAL_PREFIX_MAP.get(prefix, f"V{prefix}")

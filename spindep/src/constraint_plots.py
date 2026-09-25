@@ -105,6 +105,115 @@ EXCLUDED_DUPLICATES = {
 }
 
 
+# ============================================================
+# EXCLUDED FROM PHYSICS ANALYSIS
+# ============================================================
+
+# Datasets that are compiled into the registry -- so the chapter can state
+# what was gathered and what was rejected -- but held out of gap analysis,
+# the constraint atlas, pair matching and every asymmetry figure.
+#
+# Same rule as EXCLUDED_DUPLICATES above: a named, evidenced, auditable
+# list, never a heuristic. "potential == UNKNOWN" is deliberately NOT the
+# criterion, because the reasons differ and the thesis reports them
+# separately.
+#
+# Keyed by filename stem, verified unique across datasets/normalized.
+EXCLUDED_FROM_ANALYSIS = {}
+
+# 1. The twelve gAgV combined curves. Upstream does not assign these a
+#    potential at all: metadata/reports/gAgV-matching-report.md lists each
+#    with Potential = "combined" and Status = "review_only", and states
+#    "This is a pilot, not an authoritative scientific release." They are
+#    envelopes over several experiments, so no single V_n applies to them
+#    by construction -- not a parsing gap that a filename pass could close.
+_COMBINED_GAGV = [
+    "Combined_Casimir_e-e", "Combined_EEP_e-e",
+    "Combined_EMM_e-e",     "Combined_Torsion_e-e",
+    "Combined_Casimir_e-N", "Combined_EEP_e-N",
+    "Combined_MS_e-N",      "Combined_Torsion_e-N",
+    "Combined_Casimir_N-N", "Combined_EEP_N-N",
+    "Combined_MS_N-N",      "Combined_Torsion_N-N",
+]
+for _stem in _COMBINED_GAGV:
+    EXCLUDED_FROM_ANALYSIS[_stem] = (
+        "gAgV combined envelope curve; upstream marks it "
+        "potential=combined, status=review_only"
+    )
+
+# 2. gpgp's astrophysical e-N bound. A real, distinct measurement (a flat
+#    |g| = 5e-19 over lambda = 2e-11..1e+14 m, stored as two endpoints),
+#    but no potential has been assigned to it. Upstream leaves both gpgp
+#    astro files unprefixed and makes no V_n claim, and V1_data.md is
+#    silent on the astrophysical bounds, so labelling it V1a from its
+#    siblings' filenames would be an inference, not evidence. Held out
+#    until the source publication settles it.
+EXCLUDED_FROM_ANALYSIS["eNastro_m_abs"] = (
+    "potential unassigned; no upstream or documentary evidence for a V_n"
+)
+
+# 3. The Code-plot-matlab entries. "Your-new-data" is a template directory
+#    shipped upstream for contributors to drop their own curves into; the
+#    coupling label is the source directory's file format, not a physics
+#    category.
+for _stem in ["New_constriants_1", "New_constriants_2"]:
+    EXCLUDED_FROM_ANALYSIS[_stem] = (
+        "Code-plot-matlab template placeholder, not a measured constraint"
+    )
+
+
+# 4. Cong (2025) hydrogen-spectroscopy bounds are published at two
+#    confidence levels. Both CSVs ship upstream, but they are the same
+#    measurement reported twice, so counting both would double-count the
+#    experiment and would pair each twice against the same antimatter
+#    curve. The 95% CL set is kept: it is the more conservative limit and
+#    the only one upstream carries a curation record for (the 90% CL files
+#    have no api/v1/records entry). Swap the suffix below to invert this.
+for _stem in ["23Cong_2025_m_ep_gAgA_90CL", "2Cong_2025_m_ep_gAgA_90CL",
+              "3Cong_2025_m_ep_gAgA_90CL", "23Cong_2025_m_ep_gVgV_90CL",
+              "3Cong_2025_m_ep_gpgp_90CL"]:
+    EXCLUDED_FROM_ANALYSIS[_stem] = (
+        "90% CL duplicate of the corresponding 95% CL Cong (2025) curve"
+    )
+
+
+# 5. The gpgs "combined" envelope curves, the gpgs analogue of the twelve
+#    gAgV Combined curves in group 1 above. The source database records
+#    all sixteen with interaction = "combined" and status = "review_only",
+#    the same treatment it gives the gAgV envelopes. The local "1a" prefix
+#    caused them to be read as V1a, which is what surfaced them: their
+#    upstream records disagree with that label. Excluded on identical
+#    grounds -- an envelope over several experiments has no single V_n.
+for _sec in ["epgNs", "epges", "npgNs", "ppgNs"]:
+    for _i in (1, 2, 3, 4):
+        EXCLUDED_FROM_ANALYSIS["1ag%scombined%d_m_abs" % (_sec, _i)] = (
+            "gpgs combined envelope curve; upstream marks it "
+            "interaction=combined, status=review_only"
+        )
+
+
+def drop_excluded_from_analysis(datasets, verbose=True):
+    """Split datasets into (kept, excluded) per EXCLUDED_FROM_ANALYSIS.
+
+    Stamps each excluded dataset's .excluded_reason so the registry can
+    record why it was held out, and returns both halves -- the registry
+    needs the full set, the analysis needs only the kept ones.
+    """
+    kept, excluded = [], []
+    for d in datasets:
+        reason = EXCLUDED_FROM_ANALYSIS.get(d.filename)
+        if reason is None:
+            kept.append(d)
+        else:
+            d.excluded_reason = reason
+            excluded.append(d)
+    if verbose and excluded:
+        print(f"[EXCLUDE] Held {len(excluded)} dataset(s) out of the analysis:")
+        for d in excluded:
+            print(f"    {d.filename:24s} -- {d.excluded_reason}")
+    return kept, excluded
+
+
 def drop_excluded_duplicates(datasets, verbose=True):
     """Remove the curves named in EXCLUDED_DUPLICATES, reporting each."""
     kept, dropped = [], []
