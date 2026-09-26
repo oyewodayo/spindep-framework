@@ -3,6 +3,22 @@ import type { AnalysisPair, SystematicFlag } from "../types";
 
 // Basic formatters
 
+/**
+ * The p-value that should actually be quoted for a pair.
+ *
+ * `pval` assumes all 300 interpolated grid points are independent degrees of
+ * freedom. They are not — they are interpolated from far fewer real
+ * measurements along smooth curves, so adjacent points are strongly
+ * correlated and `pval` is correspondingly over-confident. `pvalEffective`
+ * is recomputed against the autocorrelation-corrected degrees of freedom and
+ * is the number reported in the thesis.
+ *
+ * Falls back to `pval` only for older payloads that predate the correction.
+ */
+export function citablePval(p: { pval: number; pvalEffective?: number }): number {
+  return p.pvalEffective ?? p.pval;
+}
+
 export function pvalColor(p: number): string {
   if (p < SIG.HIGHLY)   return T.red;
   if (p < SIG.STANDARD) return T.amber;
@@ -181,7 +197,7 @@ export function makeFallbackTree() {
 // LaTeX generation
 
 export function buildLatexTable(pairs: AnalysisPair[]): string {
-  const sig = pairs.filter(p => p.pval < SIG.STANDARD);
+  const sig = pairs.filter(p => citablePval(p) < SIG.STANDARD);
   return `\\begin{table}[h]
 \\centering
 \\caption{CPT Asymmetry Test Results — Weighted $\\chi^2$ Method}

@@ -380,6 +380,70 @@ def export_gap_analysis():
     return _attachment(_zip_dir_bytes(gap_dir), "gap_analysis_figures.zip", "application/zip")
 
 
+@app.get("/api/registry")
+def get_registry():
+    """
+    The compiled dataset registry, exactly as the pipeline wrote it.
+
+    Reads results/tables/dataset_registry.csv rather than re-deriving anything,
+    so the GUI can never disagree with the numbers the pipeline produced (and
+    therefore with the thesis, which quotes the same file). Includes the
+    excluded rows and their stated reasons: what was held out of the analysis,
+    and why, is part of the result rather than an implementation detail.
+    """
+    import csv as _csv
+    from collections import Counter
+
+    path = RESULTS_ROOT / "tables" / "dataset_registry.csv"
+    if not path.exists():
+        raise HTTPException(404, "No registry yet — run the pipeline first.")
+
+    with open(path, newline="") as fh:
+        rows = list(_csv.DictReader(fh))
+
+    def as_bool(v):
+        return str(v).strip().lower() == "true"
+
+    records = [{
+        "filename":        r.get("filename", ""),
+        "filepath":        r.get("filepath", ""),
+        "coupling":        r.get("coupling", ""),
+        "potential":       r.get("potential", ""),
+        "sector":          r.get("sector", ""),
+        "interactionClass": r.get("interaction_class", ""),
+        "source":          r.get("source", ""),
+        "isAntimatter":    as_bool(r.get("contains_antimatter")),
+        "scaleRegime":     r.get("scale_regime", ""),
+        "normalisation":   r.get("normalisation", "g"),
+        "excluded":        as_bool(r.get("excluded")),
+        "exclusionReason": r.get("excluded_reason", "") or None,
+    } for r in rows]
+
+    analysed = [r for r in records if not r["excluded"]]
+    excluded = [r for r in records if r["excluded"]]
+
+    return {
+        "records": records,
+        "summary": {
+            "compiled":   len(records),
+            "excluded":   len(excluded),
+            "analysed":   len(analysed),
+            "matter":     sum(1 for r in analysed if not r["isAntimatter"]),
+            "antimatter": sum(1 for r in analysed if r["isAntimatter"]),
+            "byCoupling":  dict(Counter(r["coupling"]  for r in analysed)),
+            "byPotential": dict(Counter(r["potential"] for r in analysed)),
+            "bySector":    dict(Counter(r["sector"]    for r in analysed)),
+            # one entry per distinct stated reason, with its count
+            "exclusionReasons": [
+                {"reason": reason, "count": n}
+                for reason, n in Counter(
+                    r["exclusionReason"] or "unspecified" for r in excluded
+                ).most_common()
+            ],
+        },
+    }
+
+
 @app.get("/api/gap-matrix")
 def get_gap_matrix():
     """
@@ -393,7 +457,13 @@ def get_gap_matrix():
     )
     from collections import defaultdict
 
-    datasets = deduplicate_by_content(discover_datasets(DATA_ROOT))
+    # Apply the same exclusion list the pipeline uses, so this matrix counts the
+    # analysed set rather than everything on disk. Without it the GUI would
+    # include the review_only envelope curves and template placeholders that
+    # run_pipeline() holds out, and would disagree with the registry.
+    from src.constraint_plots import drop_excluded_from_analysis
+    _kept, _ = drop_excluded_from_analysis(discover_datasets(DATA_ROOT), verbose=False)
+    datasets = deduplicate_by_content(_kept)
 
     counts = defaultdict(int)
     potentials_seen, sectors_seen = set(), set()

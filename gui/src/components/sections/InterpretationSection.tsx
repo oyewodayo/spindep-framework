@@ -197,6 +197,98 @@ function Chi2RatioScatter({ pairs }: { pairs: AnalysisPair[] }) {
   );
 }
 
+/**
+ * Sensitivity-gap scatter: the central interpretive result.
+ *
+ * A_alpha built from one-sided experimental upper bounds saturates whenever the
+ * two experiments differ in sensitivity, regardless of the underlying CPT
+ * physics. Plotting |A_alpha| against the sensitivity ratio makes that visible:
+ * points march toward 1 as the ratio grows, and the informative pairs are the
+ * ones at the left, where the two sectors are probed comparably.
+ *
+ * The ratio is estimated from the per-point fractional uncertainties the
+ * pipeline reports for each side, which is the only sensitivity proxy carried
+ * in the pair payload.
+ */
+function SensitivityGapScatter({ pairs }: { pairs: AnalysisPair[] }) {
+  const data = useMemo(
+    () =>
+      pairs
+        .map(p => {
+          const lo = Math.min(p.sigmaM, p.sigmaA);
+          const hi = Math.max(p.sigmaM, p.sigmaA);
+          return {
+            id: p.id,
+            x: lo > 0 ? hi / lo : NaN,   // sensitivity mismatch, >= 1
+            y: p.meanAbsA,
+            coupling: p.coupling,
+            potential: p.potential,
+          };
+        })
+        .filter(d => Number.isFinite(d.x)),
+    [pairs]
+  );
+
+  const Dot = (props: any) => {
+    const { cx, cy, payload } = props;
+    const col = payload.y >= 0.95 ? T.red : payload.y >= 0.5 ? T.amber : T.blue;
+    return <circle cx={cx} cy={cy} r={6} fill={col} fillOpacity={0.85} stroke={T.bg0} strokeWidth={1} />;
+  };
+
+  const mostInformative = data.length
+    ? data.reduce((a, b) => (b.y < a.y ? b : a))
+    : null;
+
+  return (
+    <div className="panel">
+      <PanelHeader
+        title="Sensitivity gap vs |Aα|"
+        icon="scope"
+        sub="Asymmetry tracks the sensitivity ratio, not CPT status — the argument behind every number on this page"
+      />
+      <div style={{ padding: "12px 8px 8px" }}>
+        <ResponsiveContainer width="100%" height={220}>
+          <ScatterChart margin={{ top: 4, right: 16, left: 0, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={T.border} />
+            <XAxis
+              type="number" dataKey="x" name="sensitivity ratio" domain={[1, "auto"]}
+              tick={{ fill: T.textDim, fontSize: 9, fontFamily: T.mono }}
+              label={{ value: "σ mismatch  (max/min)", position: "insideBottom", offset: -12, fill: T.muted, fontSize: 10 }}
+            />
+            <YAxis
+              type="number" dataKey="y" name="|Aα|" domain={[0, 1.05]}
+              tick={{ fill: T.textDim, fontSize: 9, fontFamily: T.mono }}
+              width={36}
+              label={{ value: "|Aα| mean", angle: -90, position: "insideLeft", fill: T.muted, fontSize: 10 }}
+            />
+            <ReferenceLine y={0.95} stroke={T.red} strokeDasharray="4 4"
+              label={{ value: "saturated", fill: T.red, fontSize: 9 }} />
+            <Tooltip
+              contentStyle={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, fontFamily: T.mono }}
+              formatter={(val: number, name: string) => [val.toFixed(4), name]}
+              labelFormatter={() => ""}
+              cursor={{ strokeDasharray: "3 3" }}
+            />
+            <Scatter data={data} shape={<Dot />} />
+          </ScatterChart>
+        </ResponsiveContainer>
+        <div style={{ fontSize: 11, color: T.textDim, lineHeight: 1.6, padding: "4px 8px 0" }}>
+          A value near 1 is <em>consistent with</em>, not <em>evidence for</em>, CPT
+          violation: two independent one-sided bounds of very different sensitivity
+          produce the same pattern under exact CPT symmetry.
+          {mostInformative && (
+            <> The most informative pair here is{" "}
+              <span style={{ fontFamily: T.mono, color: T.blue }}>{mostInformative.id}</span>{" "}
+              at |Aα| = {mostInformative.y.toFixed(4)} — precisely because it is
+              <em> not</em> saturated.
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** χ² ratio trend bar chart showing each pair */
 function Chi2RatioTrend({ pairs }: { pairs: AnalysisPair[] }) {
   const data = useMemo(
@@ -533,6 +625,7 @@ export const InterpretationSection: React.FC<InterpretationSectionProps> = ({ pa
       {/* Charts row */}
       <div className="split split-2" style={{ marginBottom: 16 }}>
         <AsymmetryDistribution pairs={pairs} />
+        <SensitivityGapScatter pairs={pairs} />
         <Chi2RatioScatter pairs={pairs} />
       </div>
 

@@ -100,7 +100,7 @@ class ReportCanvas:
         canvas.rect(0, 0, W, 0.8*cm, fill=1, stroke=0)
         canvas.setFont("Helvetica", 7)
         canvas.setFillColor(MID)
-        canvas.drawString(1.2*cm, 0.27*cm, f"Generated: {self.timestamp}")
+        canvas.drawString(1.2*cm, 0.27*cm, f"SPINDEP Generated: {self.timestamp}")
         canvas.drawCentredString(W / 2, 0.27*cm, f"Page {doc.page}")
         canvas.drawRightString(W - 1.2*cm, 0.27*cm,
             f"{self.total_pairs} matter-antimatter pairs analysed")
@@ -172,7 +172,7 @@ def build_cover(styles, summary_rows, skipped, timestamp):
         [[Paragraph("Spin-Dependent Exotic Interactions", styles["cover_title"])],
          [Paragraph("Matter–Antimatter Asymmetry Analysis Report", styles["cover_sub"])],
          [Spacer(1, 0.25*cm)],
-         [Paragraph(f"Generated: {timestamp}", styles["cover_sub"])]],
+         [Paragraph(f"SPINDEP Generated: {timestamp}", styles["cover_sub"])]],
         colWidths=[CONTENT_WIDTH],
     )
     title_table.setStyle(TableStyle([

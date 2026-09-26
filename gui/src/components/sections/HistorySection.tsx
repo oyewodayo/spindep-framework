@@ -3,6 +3,7 @@ import { T, SIG } from "../../constants";
 import { Icon } from "../ui/Icon";
 import { Stat, PanelHeader } from "../ui";
 import type { RunRecord, AnalysisPair } from "../../types";
+import { citablePval } from "../../utils";
 
 interface HistorySectionProps {
   history:     RunRecord[];
@@ -235,7 +236,7 @@ function RunDrawer({
                     <td><span className="tag tag-blue">{p.coupling}</span></td>
                     <td><span className="tag tag-violet">{p.potential}</span></td>
                     <td style={{ color: p.meanAbsA >= 0.95 ? T.red : T.text }}>{p.meanAbsA?.toFixed(4)}</td>
-                    <td style={{ color: p.pval < SIG.HIGHLY ? T.red : T.text, fontFamily: T.mono, fontSize: 11 }}>
+                    <td style={{ color: citablePval(p) < SIG.HIGHLY ? T.red : T.text, fontFamily: T.mono, fontSize: 11 }}>
                       {p.pval < 1e-9 ? "<10⁻⁹" : p.pval?.toExponential(2)}
                     </td>
                     <td style={{ color: (p.chi2Ratio ?? 1) < 1 ? T.teal : T.amber, fontFamily: T.mono, fontSize: 11 }}>

@@ -1,3 +1,4 @@
+import { citablePval } from "../utils";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { apiClient } from "../api/client";
 import { API_HEALTH_INTERVAL_MS, API_POLL_INTERVAL_MS } from "../constants";
@@ -185,7 +186,7 @@ function saveHistory(records: RunRecord[]): void {
 function buildSummary(pairs: AnalysisPair[]): RunSummary {
   return {
     nPairs:       pairs.length,
-    nSignificant: pairs.filter(p => p.pval < 0.05).length,
+    nSignificant: pairs.filter(p => citablePval(p) < SIG.STANDARD).length,
     avgAbsA:      pairs.length
       ? pairs.reduce((s, p) => s + p.meanAbsA, 0) / pairs.length
       : 0,

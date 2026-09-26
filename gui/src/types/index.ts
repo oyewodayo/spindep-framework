@@ -3,7 +3,7 @@ export type PotentialType = "Yukawa" | "power-law" | string;
 export type PipelineMode = "full" | "validate" | "gaps" | "atlas";
 export type JobStatus = "queued" | "running" | "done" | "error";
 export type NavSection =
-  | "ingest" | "pipeline" | "batch" | "pairs"
+  | "ingest" | "database" | "pipeline" | "batch" | "pairs"
   | "atlas" | "gaps" | "export"
   | "interpretation" | "provenance" | "coverage"
   | "history" | "nulltest";
@@ -259,4 +259,39 @@ export interface NullTestBattery {
   configs:   NullTestConfig[];
   results:   NullTestResult[];
   createdAt: string;
+}
+
+/** One row of the compiled dataset registry, as written by the pipeline. */
+export interface RegistryRecord {
+  filename: string;
+  filepath: string;
+  coupling: string;
+  potential: string;
+  sector: string;
+  interactionClass: string;
+  source: string;
+  isAntimatter: boolean;
+  scaleRegime: string;
+  normalisation: string;
+  /** true when the dataset is compiled into the registry but held out of the analysis */
+  excluded: boolean;
+  /** the stated reason for exclusion; null for analysed datasets */
+  exclusionReason: string | null;
+}
+
+export interface RegistrySummary {
+  compiled: number;
+  excluded: number;
+  analysed: number;
+  matter: number;
+  antimatter: number;
+  byCoupling: Record<string, number>;
+  byPotential: Record<string, number>;
+  bySector: Record<string, number>;
+  exclusionReasons: { reason: string; count: number }[];
+}
+
+export interface Registry {
+  records: RegistryRecord[];
+  summary: RegistrySummary;
 }

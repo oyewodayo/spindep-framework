@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { T, SIG } from "../../constants";
-import { pvalColor, formatPval, buildCsvTable, buildLatexTable, downloadTextFile } from "../../utils";
+import { pvalColor, formatPval, buildCsvTable, buildLatexTable, downloadTextFile, citablePval } from "../../utils";
 import { Stat, PanelHeader, SearchBar, SigTag } from "../ui";
 import { Icon } from "../ui/Icon";
 import { PairDetail } from "./PairDetail";
@@ -43,8 +43,8 @@ export const BatchResultsSection: React.FC<BatchResultsSectionProps> = ({ pairs 
     });
   }, [pairs, sort, query, filterCoupling]);
 
-  const sig  = pairs.filter(p => p.pval < SIG.STANDARD).length;
-  const hSig = pairs.filter(p => p.pval < SIG.HIGHLY).length;
+  const sig  = pairs.filter(p => citablePval(p) < SIG.STANDARD).length;
+  const hSig = pairs.filter(p => citablePval(p) < SIG.HIGHLY).length;
 
   const SortTh: React.FC<{ col: keyof AnalysisPair; label: string }> = ({ col, label }) => (
     <th
@@ -171,8 +171,8 @@ export const BatchResultsSection: React.FC<BatchResultsSectionProps> = ({ pairs 
                     {p.chi2Ratio?.toFixed(3) ?? "—"}
                   </td>
                   <td style={{ color: T.textDim }}>{p.dof}</td>
-                  <td style={{ color: pvalColor(p.pval) }}>{formatPval(p.pval)}</td>
-                  <td><SigTag pval={p.pval} /></td>
+                  <td style={{ color: pvalColor(citablePval(p)) }}>{formatPval(citablePval(p))}</td>
+                  <td><SigTag pval={citablePval(p)} /></td>
                   <td style={{ color: T.textDim, fontSize: 10, fontFamily: T.mono }}>
                     {p.lambdaMin?.toExponential(2)}&nbsp;–&nbsp;{p.lambdaMax?.toExponential(2)}
                   </td>

@@ -13,6 +13,7 @@ import type {
   NullTestPoint,
   NullTestStatus,
   GapMatrix,
+  Registry,
 } from "../types";
 
 // Generic fetcher
@@ -291,6 +292,16 @@ export const apiClient = {
    * registry (not matched pairs) — same source and counting rule as the
    * matplotlib pair_coverage_matrix.png.
    */
+  /**
+   * The compiled dataset registry, straight from the pipeline's own CSV.
+   * Unlike the pair list, this covers every dataset — including the ones held
+   * out of the analysis and why — so the UI can report the same totals the
+   * pipeline and the thesis do.
+   */
+  async getRegistry(): Promise<Registry> {
+    return request<Registry>(`/api/registry`);
+  },
+
   async getGapMatrix(): Promise<GapMatrix> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw = await request<any>(`/api/gap-matrix`);

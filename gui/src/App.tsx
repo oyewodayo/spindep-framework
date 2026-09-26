@@ -1,3 +1,4 @@
+import { citablePval } from "./utils";
 import React, { useEffect, useState, useCallback } from "react";
 import { GLOBAL_CSS } from "./constants/styles";
 import { useApiHealth, usePipeline, useRunHistory } from "./hooks";
@@ -7,6 +8,7 @@ import { Sidebar }  from "./components/layout/Sidebar";
 import { Topbar }   from "./components/layout/Topbar";
 
 import { IngestSection }          from "./components/sections/IngestSection";
+import { DatabaseSection }        from "./components/sections/DatabaseSection";
 import { PipelineSection }        from "./components/sections/PipelineSection";
 import { BatchResultsSection }    from "./components/sections/BatchResultsSection";
 import { AtlasSection }           from "./components/sections/AtlasSection";
@@ -58,7 +60,7 @@ export default function App() {
     if (pipelinePairs.length > 0) setActivePairs(pipelinePairs);
   }, [pipelinePairs]);
 
-  const significantPairs = activePairs.filter(p => p.pval < SIG.STANDARD).length;
+  const significantPairs = activePairs.filter(p => citablePval(p) < SIG.STANDARD).length;
 
   const handleStartRun = useCallback(
     async (m: PipelineMode) => {
@@ -87,6 +89,8 @@ export default function App() {
     switch (page) {
       case "ingest":
         return <IngestSection onStartRun={handleStartRun} apiOnline={apiOnline} />;
+      case "database":
+        return <DatabaseSection />;
       case "pipeline":
         return <PipelineSection mode={mode} jobId={jobId} onComplete={handlePipelineComplete} />;
       case "batch":

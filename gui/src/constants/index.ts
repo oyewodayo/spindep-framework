@@ -83,6 +83,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { id: "ingest",         label: "Ingest",                icon: "upload",   group: "Data"       },
+  { id: "database",       label: "Compiled Database",     icon: "table",    group: "Data"       },
   { id: "pipeline",       label: "Pipeline Runner",       icon: "play",     group: "Data"       },
   { id: "history",        label: "Run History",           icon: "layers",   group: "Data"       },
   { id: "batch",          label: "Batch Results",         icon: "table",    group: "Analysis"   },
