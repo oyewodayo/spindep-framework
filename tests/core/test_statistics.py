@@ -188,8 +188,8 @@ def test_uncertainty_summary_skips_none_entries():
 
 
 def test_effective_pvalue_rescales_chi2_with_dof():
-    # Correlated curves: the effective-dof p-value must use chi2 * dof_eff / n,
-    # so it can never be more significant than the nominal-dof p-value.
+    # For correlated curves the effective-dof test uses chi2 * dof_eff / n,
+    # so it can never come out more significant than the nominal one.
     import pandas as pd
     from src.statistics import chi_squared_from_datasets, significance_from_chi2
     lam = np.logspace(-12, -8, 300)
@@ -213,7 +213,7 @@ def test_significance_from_chi2_does_not_underflow():
 
 
 def test_bootstrap_from_couplings_keeps_saturated_mean_inside_ci():
-    # Near |A| = 1 the interval must still contain the point estimate.
+    # Close to |A| = 1 the interval should still contain the estimate.
     g_m = np.full(50, 1e-15)
     g_a = np.full(50, 1e-11)
     s = np.full(50, 0.2)

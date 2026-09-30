@@ -49,3 +49,12 @@ def test_run_pipeline_end_to_end_on_one_synthetic_pair(tmp_dataset_dir, tmp_path
     report_pdfs = list(reports_dir.glob("*.pdf"))
     assert len(report_pdfs) == 1
     assert report_pdfs[0].stat().st_size > 0
+
+
+def test_registry_filepaths_are_not_absolute(tmp_dataset_dir, tmp_path):
+    # The registry is committed publicly, so it must not carry absolute
+    # paths from whichever machine ran the pipeline.
+    results_root = tmp_path / "results"
+    run_pipeline(dataset_root=tmp_dataset_dir, results_root=results_root)
+    registry = pd.read_csv(results_root / "tables" / "dataset_registry.csv")
+    assert not registry["filepath"].astype(str).str.startswith("/").any()

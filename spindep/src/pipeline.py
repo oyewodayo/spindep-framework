@@ -19,6 +19,27 @@ from .gap_analysis import run_gap_analysis
 from .constraint_plots import run_constraint_plots, drop_excluded_from_analysis
 
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _portable_path(filepath, dataset_root):
+    """
+    Path of a dataset relative to the repo, or to the dataset folder if it
+    lives outside the repo, or just its file name as a last resort.
+
+    The registry is committed to GitHub, so an absolute path would only
+    publish my local folder layout (/home/user/...) and would mean nothing
+    on anyone else's machine.
+    """
+    p = Path(filepath).resolve()
+    for base in (_REPO_ROOT, Path(dataset_root).resolve()):
+        try:
+            return p.relative_to(base).as_posix()
+        except ValueError:
+            continue
+    return p.name
+
+
 def run_pipeline(dataset_root, results_root, json_out=None):
 
     dataset_root = Path(dataset_root)
@@ -83,6 +104,10 @@ def run_pipeline(dataset_root, results_root, json_out=None):
     # EXPORT REGISTRY  (all compiled datasets, excluded flagged)
     # --------------------------------------------------------
     registry = pd.DataFrame([asdict(d) for d in datasets + excluded])
+    # Make the paths portable before writing; see _portable_path().
+    registry["filepath"] = registry["filepath"].map(
+        lambda fp: _portable_path(fp, dataset_root)
+    )
     registry["excluded"] = registry["excluded_reason"] != ""
     registry = registry.sort_values(
         ["excluded", "coupling", "potential", "filename"]

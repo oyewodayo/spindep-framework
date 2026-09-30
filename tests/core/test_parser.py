@@ -275,6 +275,6 @@ def test_load_dataset_on_real_fixture(real_fixtures_dir):
     "2Karshenboim_2011_4_m_abs_emu",
 ])
 def test_muonium_bounds_are_antimatter_sector(stem):
-    # Muonium (e- mu+) contains an antimuon, like the ddmu+ ion.
+    # Muonium is e- mu+, so it belongs on the antimatter side, like ddmu+.
     from src.parser import FILENAME_SECTOR_OVERRIDES
     assert FILENAME_SECTOR_OVERRIDES[stem] == ("emubar", True)

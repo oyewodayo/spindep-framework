@@ -202,18 +202,23 @@ def effective_dof(residuals: np.ndarray, lam_grid: np.ndarray) -> dict:
 
 def significance_from_chi2(chi2_value: float, dof: int) -> dict:
     """
-    Upper-tail p-value of a chi-squared statistic, reported three ways so
-    that very small values stay meaningful instead of underflowing to 0:
+    Tail probability of a chi-squared value, in a form that survives huge
+    chi2 values.
 
-        p_value : float  (may underflow to 0.0 for huge chi2)
-        log10_p : float  (log10 of the p-value, computed from logsf)
-        z       : float  (one-sided Gaussian-equivalent significance)
+    For most matched pairs chi2 is in the thousands, and 1 - cdf rounds to
+    exactly 0.0, which says nothing useful. So this returns three things:
+
+        p_value : the plain p-value (can still be 0.0 for huge chi2)
+        log10_p : its log10, which stays finite
+        z       : the equivalent one-sided Gaussian significance
+
+    Z is what the thesis and the paper quote.
     """
     logp = float(chi2_dist.logsf(chi2_value, df=dof))
     if not np.isfinite(logp):
-        # scipy underflows for very large chi2; the chi2 upper tail is the
-        # regularised upper incomplete gamma Q(dof/2, chi2/2), evaluated
-        # here in arbitrary precision.
+        # Even logsf gives -inf once chi2 is big enough (5000 on 6 dof
+        # already does it). The upper tail is the regularised gamma function
+        # Q(dof/2, chi2/2), so work it out with mpmath instead.
         import mpmath
         q = mpmath.gammainc(mpmath.mpf(dof) / 2, mpmath.mpf(chi2_value) / 2,
                             mpmath.inf, regularized=True)
@@ -244,12 +249,12 @@ def bootstrap_aalpha_ci(
     """
     Parametric bootstrap confidence interval on mean |Aα|.
 
-    When the coupling arrays g_m, g_a and their fractional uncertainties
-    are passed (as chi_squared_from_datasets does), each resample perturbs
-    the couplings log-normally and recomputes A exactly; the interval is
-    then shifted by the median bootstrap bias so it is centred on the
-    point estimate. Without them, the older delta-method path below is
-    used.
+        chi_squared_from_datasets passes the two coupling curves and their
+    fractional uncertainties, and that is the path the thesis uses: each
+    resample perturbs the couplings themselves and recomputes A from
+    scratch, then the interval is shifted back by the median bootstrap
+    bias. Called with A and sigma only, it uses the simpler delta-method
+    path further down.
 
     At each bootstrap iteration:
       1. Perturb each coupling pair (g_m_i, g_a_i) by drawing from
@@ -297,11 +302,10 @@ def bootstrap_aalpha_ci(
     """
     rng    = np.random.default_rng(seed)
 
-    # Preferred path: perturb the two couplings themselves by their
-    # fractional uncertainties (log-normal, so they stay positive) and
-    # recompute A exactly. |A| then stays below 1 by construction, so the
-    # interval is not pulled down near saturation the way clipping a
-    # perturbed |A| at 1 would pull it.
+    # Perturb the two bounds themselves (log-normal, so they stay positive)
+    # and recompute A from scratch. Adding noise to |A| and clipping it at 1
+    # instead would only ever push saturated pairs down, and the estimate
+    # could end up outside its own interval.
     if g_m is not None and g_a is not None and sigma_m is not None and sigma_a is not None:
         g_m = np.asarray(g_m, float); g_a = np.asarray(g_a, float)
         s_m = np.asarray(sigma_m, float); s_a = np.asarray(sigma_a, float)
@@ -318,10 +322,11 @@ def bootstrap_aalpha_ci(
             ga_b = ga * np.exp(sa * rng.standard_normal(ga.size))
             boot_means[b] = float(np.mean(np.abs((gm_b - ga_b) / (gm_b + ga_b))))
         alpha = 1.0 - ci_level
-        # |A| is nonlinear in the couplings (folded at 0, saturating at 1),
-        # so the resampled means sit off the point estimate even with
-        # symmetric noise. Remove that bootstrap bias, estimated as the
-        # median offset, so the interval is centred on the estimate.
+        # Even with symmetric noise, |A| is folded at 0 and capped at 1, so
+        # the resampled means drift off the estimate (upwards for the
+        # Jiao/Karshenboim pair near 0.33, downwards near 1). Shift the
+        # interval back by the median drift so it is centred on the
+        # estimate again.
         theta = float(np.mean(A0))
         bias  = float(np.median(boot_means)) - theta
         lo    = float(np.percentile(boot_means, 100 * alpha / 2)) - bias
@@ -336,7 +341,8 @@ def bootstrap_aalpha_ci(
             "std_aalpha":  float(np.std(boot_means)),
         }
 
-    # Fallback (no coupling arrays): perturb A directly, delta-method style.
+    # Simpler path for callers that only have A and sigma: perturb A
+    # directly, delta-method style.
     valid  = np.isfinite(A) & np.isfinite(sigma_combined)
     A_v    = np.abs(A[valid])
     sig_v  = sigma_combined[valid]
@@ -484,11 +490,12 @@ def chi_squared_from_datasets(df_m, df_a, lam_grid=None, n_points=300,
     eff_dof_info   = effective_dof(chi2_per_point, lam_grid[valid])
     dof_eff        = eff_dof_info["dof_effective"]
     autocorr_len   = eff_dof_info["autocorr_length"]
-    # Correlated points: the sum over n grid points counts each independent
-    # piece of information ~tau times, so the statistic is rescaled by the
-    # same factor as the dof (chi2 * dof_eff / n) before comparing with a
-    # chi2 distribution on dof_eff degrees of freedom. Comparing the full
-    # sum against dof_eff alone would overstate the significance.
+    # The 300 grid points are interpolated from far fewer real
+    # measurements, so neighbouring points carry the same information about
+    # tau times over. Scale chi2 down by the same factor as the dof
+    # (chi2 * dof_eff / n) before testing it on dof_eff degrees of freedom.
+    # Testing the full chi2 against dof_eff would make every pair look far
+    # more significant than it is.
     n_valid_pts    = max(eff_dof_info["n_valid"], 1)
     chi2_w_eff     = chi2_w * dof_eff / n_valid_pts
     sig            = significance_from_chi2(chi2_w_eff, max(dof_eff, 1))
