@@ -14,7 +14,12 @@ __pycache__/
 *.egg-info/
 
 # SPINDEP results
-results/
+results/*
+!results/tables/
+results/tables/*
+!results/tables/dataset_registry.csv
+!results/tables/asymmetry_summary.csv
+
 *.pdf
 *.png
 
