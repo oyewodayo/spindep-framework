@@ -21,6 +21,7 @@ results/*
 results/tables/*
 !results/tables/dataset_registry.csv
 !results/tables/asymmetry_summary.csv
+!results/tables/sensitivity_ratio.csv
 
 *.pdf
 *.png

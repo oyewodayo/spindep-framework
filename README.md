@@ -468,6 +468,7 @@ Both columns must be strictly positive — rows that aren't get silently dropped
 |------|-------------|
 | `results/tables/dataset_registry.csv` | Full metadata for every discovered dataset |
 | `results/tables/asymmetry_summary.csv` | Per-pair: χ², dof, p-value, mean \|A_α\|, λ range |
+| `results/tables/sensitivity_ratio.csv` | Per-pair sensitivity ratio: median log₁₀ R, fraction within ×2 and ×10, balanced intervals (from `scripts/sensitivity_ratio.py`) |
 | `results/plots/{coupling}_{potential}_{sector}.png` | Constraint comparison + asymmetry plot |
 | `results/reports/asymmetry_report.pdf` | Full PDF report (cover, summary table, per-pair sections) |
 
@@ -549,42 +550,57 @@ FILENAME_SECTOR_OVERRIDES["MyAuthor_2024"] = ("ep", False)
 
 ```
 spindep_framework/
-├── bootstrap.ps1                 # Windows: installs Python/Node if missing, then runs install.py
-├── bootstrap.sh                  # macOS/Linux: same, via brew/apt/dnf/pacman
-├── install.py                    # One-line installer
-├── setup.py                      # pip install config (registers 'spin')
 ├── README.md                     # This file
-├── spin_run.yaml                 # Example config files
+├── requirements.txt              # Pinned Python dependencies
+├── install.py                    # One-line installer
+├── bootstrap.ps1 / bootstrap.sh  # Install Python/Node if missing, then run install.py
+├── activate_spin.ps1 / .sh       # Activate the environment
+├── spin_run.yaml                 # Example run config
 ├── spin_batch_jobs.yaml          # Example batch file
-└── spindep/                      # Main package
-    ├── __init__.py
-    ├── cli.py                    # 'spin' command entry point
-    ├── main.py                   # Direct Python entry point
-    ├── datasets/
-    │   └── normalized/           # All CSV datasets
-    │       ├── gAgA/
-    │       │   └── lepton-lepton/
-    │       ├── gsgs/
-    │       ├── gVgV/
-    │       └── gpgp/
-    ├── results/                  # Auto-generated
-    │   ├── reports/              # PDF reports
-    │   ├── plots/                # Per-pair asymmetry plots
-    │   ├── figures/              # Atlas + gap analysis
-    │   └── tables/               # CSV summaries
-    └── src/
-        ├── parser.py             # Dataset discovery & classification
-        ├── matcher.py            # Matter-antimatter pairing
-        ├── asymmetry.py          # A_alpha computation
-        ├── statistics.py         # Chi-squared (uniform + weighted)
-        ├── interpolation.py      # Log-linear interpolation
-        ├── unit_conversion.py    # Lambda unit standardisation
-        ├── gap_analysis.py       # Gap analysis figures
-        ├── constraint_plots.py   # Constraint atlas plots
-        ├── plotting.py           # Per-pair asymmetry plots
-        ├── reporting.py          # PDF report generation
-        └── pipeline.py           # Full pipeline orchestration
+├── spindep/                      # Analysis package
+│   ├── main.py                   # Direct entry point (run from spindep/)
+│   ├── datasets/
+│   │   ├── normalized/           # Every constraint curve, {coupling}/{interaction_class}/{file}.csv
+│   │   └── source/               # Source files the normalized curves came from
+│   └── src/
+│       ├── parser.py             # Dataset discovery, sector/potential classification, overrides
+│       ├── matcher.py            # Matter-antimatter pairing
+│       ├── unit_conversion.py    # Lambda unit detection and conversion to metres
+│       ├── statistics.py         # A_alpha, chi-squared, effective dof, bootstrap
+│       ├── null_test.py          # Null test and signal injection
+│       ├── gap_analysis.py       # Coverage and gap figures
+│       ├── constraint_plots.py   # Constraint atlas and comparison plots
+│       ├── plotting.py           # Per-pair asymmetry plots
+│       ├── reporting.py          # PDF report
+│       └── pipeline.py           # Full pipeline
+├── scripts/
+│   ├── sensitivity_ratio.py      # Stage I sensitivity-ratio analysis (paper Table VI, Fig. 3)
+│   └── paper_figures.py          # Journal versions of the coverage and pair figures
+├── results/                      # Generated; only the three tables below are tracked
+│   └── tables/
+│       ├── dataset_registry.csv
+│       ├── asymmetry_summary.csv
+│       └── sensitivity_ratio.csv
+├── spindep_cli/                  # The 'spin' command
+├── spindep_api/                  # Backend for the GUI
+├── gui/                          # Web GUI
+└── tests/                        # pytest suite
 ```
+
+## Reproducing the paper
+
+From the repo root:
+
+```bash
+pip install -r requirements.txt
+cd spindep && python main.py && cd ..   # registry, matched pairs, pipeline figures
+python scripts/sensitivity_ratio.py     # results/tables/sensitivity_ratio.csv, results/figures/sensitivity_ratio.pdf
+python scripts/paper_figures.py         # results/figures/paper/
+python -m pytest                        # test suite
+```
+
+The three tables in `results/tables/` are tracked, so the numbers quoted in the
+paper can be checked without rerunning anything.
 
 ## Citation
 
