@@ -936,7 +936,7 @@ def run_constraint_plots(datasets, summary_rows, plots_dir, figures_dir):
 
     Parameters
     ----------
-    datasets     : list of ConstraintDataset (all 273)
+    datasets     : list of ConstraintDataset (every compiled dataset)
     summary_rows : list of dicts from pipeline (valid pairs only)
     plots_dir    : Path to per-pair asymmetry plots
     figures_dir  : Path to figures output root
