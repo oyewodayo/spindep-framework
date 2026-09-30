@@ -95,7 +95,7 @@ SECTOR_ALIASES = {
     # ── exotic lepton sectors ─────────────────────────────────
     "muplus":     "mubar",
     "eeplus":     "eebar",
-    "e_muplus":   "emu",     # Ohayon/Stadnik e-mu+ files
+    "e_muplus":   "emubar",  # Ohayon/Stadnik e-mu+ (muonium) files
 
     # ── experiment-type labels ────────────────────────────────
     "Casimir":    "ee",
@@ -268,8 +268,13 @@ FILENAME_SECTOR_OVERRIDES = {
     "Torsion_ee":                ("ee",   False),
     "WEP_ee":                    ("ee",   False),
     "Adkins_2022_eeplus":        ("eebar",True),
-    "Ohayon_2022_e_muplus":      ("emu",  False),   # e-μ+ is matter side
-    "Stadnik_2023_e_muplus":     ("emu",  False),
+    # e-mu+ bounds come from muonium, which contains an antimuon: the same
+    # reasoning that puts ddmu+ in the antimatter sector above.
+    "Ohayon_2022_e_muplus":      ("emubar", True),
+    "Stadnik_2023_e_muplus":     ("emubar", True),
+    # Karshenboim (2011) mu-e curve is derived from muonium hyperfine data
+    # (PRA 83, 062119, Fig. 4 and text: "HFS experiment (muonium, ...)").
+    "2Karshenboim_2011_4_m_abs_emu": ("emubar", True),
     "Delaunay_2017_en":          ("en",   False),
     "Casimir_NN":                ("nN",   False),
     "Delaunay_2022_NN":          ("nN",   False),
@@ -287,8 +292,8 @@ FILENAME_SECTOR_OVERRIDES = {
     "V1_Torsion_ee":             ("ee",     False),
     "V1_WEP_ee":                 ("ee",     False),
     "V1_Adkins_2022_eeplus":     ("eebar",  True),
-    "V1_Ohayon_2022_e_muplus":   ("emu",    False),
-    "V1_Stadnik_2023_e_muplus":  ("emu",    False),
+    "V1_Ohayon_2022_e_muplus":   ("emubar", True),
+    "V1_Stadnik_2023_e_muplus":  ("emubar", True),
     "V1_Delaunay_2017":          ("ee",     False),
     "V1_Delaunay_2017_en":       ("en",     False),
     "V1_Casimir_NN":             ("nN",     False),

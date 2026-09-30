@@ -19,7 +19,9 @@ Both are integrated into chi_squared_from_datasets() return dict
 via new keys:
    aalpha_ci_low, aalpha_ci_high   (bootstrap 95% CI bounds)
    dof_effective                    (autocorrelation-corrected dof)
-   pval_weighted_eff                (p-value using dof_effective)
+   pval_weighted_eff                (p-value using dof_effective, with chi2
+                                     rescaled by dof_effective / n)
+   log10_pval_weighted_eff, z_weighted_eff (same, as log10 p and Z)
    autocorr_length                  (for transparency in reports)
 
 Existing behaviour is unchanged — all original keys still present.
@@ -27,6 +29,8 @@ Existing behaviour is unchanged — all original keys still present.
 
 import numpy as np
 from scipy.stats import chi2 as chi2_dist
+from scipy.stats import norm
+from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 
 
@@ -46,7 +50,7 @@ def chi_squared_sensitivity(g_m, g_a, sigma_frac=0.1):
     chi2_vals  = (g_m - g_a) ** 2 / sigma_sq
     chi2_total = float(np.nansum(chi2_vals))
     dof        = int(np.sum(np.isfinite(chi2_vals)))
-    p_value    = 1.0 - chi2_dist.cdf(chi2_total, df=dof)
+    p_value    = float(chi2_dist.sf(chi2_total, df=dof))
 
     return chi2_total, dof, p_value
 
@@ -126,7 +130,7 @@ def chi_squared_weighted(g_m, g_a, sigma_m, sigma_a):
 
     chi2_total = float(np.nansum(chi2_vals))
     dof        = int(np.sum(valid))
-    p_value    = 1.0 - chi2_dist.cdf(chi2_total, df=max(dof, 1))
+    p_value    = float(chi2_dist.sf(chi2_total, df=max(dof, 1)))
 
     return chi2_total, dof, p_value, np.sqrt(combined_var)
 
@@ -196,6 +200,32 @@ def effective_dof(residuals: np.ndarray, lam_grid: np.ndarray) -> dict:
     }
 
 
+def significance_from_chi2(chi2_value: float, dof: int) -> dict:
+    """
+    Upper-tail p-value of a chi-squared statistic, reported three ways so
+    that very small values stay meaningful instead of underflowing to 0:
+
+        p_value : float  (may underflow to 0.0 for huge chi2)
+        log10_p : float  (log10 of the p-value, computed from logsf)
+        z       : float  (one-sided Gaussian-equivalent significance)
+    """
+    logp = float(chi2_dist.logsf(chi2_value, df=dof))
+    if not np.isfinite(logp):
+        # scipy underflows for very large chi2; the chi2 upper tail is the
+        # regularised upper incomplete gamma Q(dof/2, chi2/2), evaluated
+        # here in arbitrary precision.
+        import mpmath
+        q = mpmath.gammainc(mpmath.mpf(dof) / 2, mpmath.mpf(chi2_value) / 2,
+                            mpmath.inf, regularized=True)
+        logp = float(mpmath.log(q))
+    p = float(np.exp(logp)) if logp > -700 else 0.0
+    if logp > np.log(0.5):
+        z = float(norm.isf(np.exp(logp)))
+    else:
+        z = float(brentq(lambda x: norm.logsf(x) - logp, 0.0, 1e4))
+    return {"p_value": p, "log10_p": logp / np.log(10), "z": z}
+
+
 # ============================================================
 # 4B. BOOTSTRAP CONFIDENCE INTERVAL ON MEAN |Aα|
 # ============================================================
@@ -206,9 +236,20 @@ def bootstrap_aalpha_ci(
     n_boot:        int   = 2000,
     ci_level:      float = 0.95,
     seed:          int   = 0,
+    g_m:           np.ndarray = None,
+    g_a:           np.ndarray = None,
+    sigma_m:       np.ndarray = None,
+    sigma_a:       np.ndarray = None,
 ) -> dict:
     """
     Parametric bootstrap confidence interval on mean |Aα|.
+
+    When the coupling arrays g_m, g_a and their fractional uncertainties
+    are passed (as chi_squared_from_datasets does), each resample perturbs
+    the couplings log-normally and recomputes A exactly; the interval is
+    then shifted by the median bootstrap bias so it is centred on the
+    point estimate. Without them, the older delta-method path below is
+    used.
 
     At each bootstrap iteration:
       1. Perturb each coupling pair (g_m_i, g_a_i) by drawing from
@@ -255,6 +296,47 @@ def bootstrap_aalpha_ci(
         std_aalpha      : float — bootstrap standard deviation
     """
     rng    = np.random.default_rng(seed)
+
+    # Preferred path: perturb the two couplings themselves by their
+    # fractional uncertainties (log-normal, so they stay positive) and
+    # recompute A exactly. |A| then stays below 1 by construction, so the
+    # interval is not pulled down near saturation the way clipping a
+    # perturbed |A| at 1 would pull it.
+    if g_m is not None and g_a is not None and sigma_m is not None and sigma_a is not None:
+        g_m = np.asarray(g_m, float); g_a = np.asarray(g_a, float)
+        s_m = np.asarray(sigma_m, float); s_a = np.asarray(sigma_a, float)
+        ok = (np.isfinite(g_m) & np.isfinite(g_a) & (g_m > 0) & (g_a > 0)
+              & np.isfinite(s_m) & np.isfinite(s_a))
+        if not np.any(ok):
+            return {"mean_aalpha": 0.0, "ci_low": 0.0, "ci_high": 0.0,
+                    "ci_level": ci_level, "n_boot": n_boot, "std_aalpha": 0.0}
+        gm, ga, sm, sa = g_m[ok], g_a[ok], s_m[ok], s_a[ok]
+        A0 = np.abs((gm - ga) / (gm + ga))
+        boot_means = np.empty(n_boot)
+        for b in range(n_boot):
+            gm_b = gm * np.exp(sm * rng.standard_normal(gm.size))
+            ga_b = ga * np.exp(sa * rng.standard_normal(ga.size))
+            boot_means[b] = float(np.mean(np.abs((gm_b - ga_b) / (gm_b + ga_b))))
+        alpha = 1.0 - ci_level
+        # |A| is nonlinear in the couplings (folded at 0, saturating at 1),
+        # so the resampled means sit off the point estimate even with
+        # symmetric noise. Remove that bootstrap bias, estimated as the
+        # median offset, so the interval is centred on the estimate.
+        theta = float(np.mean(A0))
+        bias  = float(np.median(boot_means)) - theta
+        lo    = float(np.percentile(boot_means, 100 * alpha / 2)) - bias
+        hi    = float(np.percentile(boot_means, 100 * (1 - alpha / 2))) - bias
+        return {
+            "mean_aalpha": theta,
+            "ci_low":      max(lo, 0.0),
+            "ci_high":     min(hi, 1.0),
+            "bias":        bias,
+            "ci_level":    ci_level,
+            "n_boot":      n_boot,
+            "std_aalpha":  float(np.std(boot_means)),
+        }
+
+    # Fallback (no coupling arrays): perturb A directly, delta-method style.
     valid  = np.isfinite(A) & np.isfinite(sigma_combined)
     A_v    = np.abs(A[valid])
     sig_v  = sigma_combined[valid]
@@ -320,7 +402,9 @@ def chi_squared_from_datasets(df_m, df_a, lam_grid=None, n_points=300,
     -------
     result : dict — all original keys plus:
         dof_effective      : int   — autocorrelation-corrected dof
-        pval_weighted_eff  : float — p-value using dof_effective
+        pval_weighted_eff  : float — p-value of chi2*dof_eff/n on dof_eff
+        log10_pval_weighted_eff, z_weighted_eff : same significance as
+                             log10 p and one-sided Gaussian Z
         autocorr_length    : float — in grid points
         aalpha_ci_low      : float — lower 95% CI on mean |Aα|
         aalpha_ci_high     : float — upper 95% CI on mean |Aα|
@@ -400,7 +484,15 @@ def chi_squared_from_datasets(df_m, df_a, lam_grid=None, n_points=300,
     eff_dof_info   = effective_dof(chi2_per_point, lam_grid[valid])
     dof_eff        = eff_dof_info["dof_effective"]
     autocorr_len   = eff_dof_info["autocorr_length"]
-    pval_w_eff     = float(1.0 - chi2_dist.cdf(chi2_w, df=max(dof_eff, 1)))
+    # Correlated points: the sum over n grid points counts each independent
+    # piece of information ~tau times, so the statistic is rescaled by the
+    # same factor as the dof (chi2 * dof_eff / n) before comparing with a
+    # chi2 distribution on dof_eff degrees of freedom. Comparing the full
+    # sum against dof_eff alone would overstate the significance.
+    n_valid_pts    = max(eff_dof_info["n_valid"], 1)
+    chi2_w_eff     = chi2_w * dof_eff / n_valid_pts
+    sig            = significance_from_chi2(chi2_w_eff, max(dof_eff, 1))
+    pval_w_eff     = sig["p_value"]
 
     # ── 7. Bootstrap CI on mean |Aα| ─────────────────────────────────
     # Build full-grid sigma_combined (valid points only → pad with NaN)
@@ -411,6 +503,8 @@ def chi_squared_from_datasets(df_m, df_a, lam_grid=None, n_points=300,
         ci_info = bootstrap_aalpha_ci(
             A, sigma_combined_full,
             n_boot=n_boot, ci_level=ci_level,
+            g_m=g_m[valid], g_a=g_a[valid],
+            sigma_m=sigma_frac_m[valid], sigma_a=sigma_frac_a[valid],
         )
     else:
         ci_info = {
@@ -441,6 +535,9 @@ def chi_squared_from_datasets(df_m, df_a, lam_grid=None, n_points=300,
         # ── New: effective DOF ────────────────────────────────
         "dof_effective":    dof_eff,
         "pval_weighted_eff":pval_w_eff,
+        "chi2_weighted_eff":chi2_w_eff,
+        "log10_pval_weighted_eff": sig["log10_p"],
+        "z_weighted_eff":   sig["z"],
         "autocorr_length":  autocorr_len,
         # ── New: bootstrap CI ─────────────────────────────────
         "aalpha_ci_low":    ci_info["ci_low"],
@@ -468,6 +565,8 @@ def uncertainty_summary(results_list):
             "pval_uniform":      r["pval_uniform"],
             "pval_weighted":     r["pval_weighted"],
             "pval_weighted_eff": r.get("pval_weighted_eff", r["pval_weighted"]),
+            "log10_pval_weighted_eff": r.get("log10_pval_weighted_eff"),
+            "z_weighted_eff":    r.get("z_weighted_eff"),
             "mean_sigma_m_%":    round(r["mean_sigma_m"] * 100, 1),
             "mean_sigma_a_%":    round(r["mean_sigma_a"] * 100, 1),
             "mean_abs_A":        round(r["mean_abs_A"], 4),

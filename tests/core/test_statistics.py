@@ -185,3 +185,39 @@ def test_uncertainty_summary_skips_none_entries():
     rows = uncertainty_summary([None, fake_result, None])
     assert len(rows) == 1
     assert rows[0]["mean_abs_A"] == 0.2
+
+
+def test_effective_pvalue_rescales_chi2_with_dof():
+    # Correlated curves: the effective-dof p-value must use chi2 * dof_eff / n,
+    # so it can never be more significant than the nominal-dof p-value.
+    import pandas as pd
+    from src.statistics import chi_squared_from_datasets, significance_from_chi2
+    lam = np.logspace(-12, -8, 300)
+    df_m = pd.DataFrame({"lambda_m": lam, "coupling_abs": 1e-10 * (lam / 1e-10) ** -0.5})
+    df_a = pd.DataFrame({"lambda_m": lam, "coupling_abs": 1.3e-10 * (lam / 1e-10) ** -0.5})
+    r = chi_squared_from_datasets(df_m, df_a, n_boot=0)
+    n = r["dof_weighted"]
+    assert r["chi2_weighted_eff"] == pytest.approx(r["chi2_weighted"] * r["dof_effective"] / n)
+    assert r["log10_pval_weighted_eff"] >= np.log10(max(r["pval_weighted"], 1e-300)) - 1e-9
+
+
+def test_significance_from_chi2_does_not_underflow():
+    from src.statistics import significance_from_chi2
+    s = significance_from_chi2(5000.0, 6)
+    assert s["p_value"] == 0.0 or s["p_value"] < 1e-300
+    assert np.isfinite(s["log10_p"]) and s["log10_p"] < -300
+    assert s["z"] > 30
+    small = significance_from_chi2(12.59, 6)      # ~5% point of chi2(6)
+    assert small["p_value"] == pytest.approx(0.05, rel=0.01)
+    assert small["z"] == pytest.approx(1.645, abs=0.01)
+
+
+def test_bootstrap_from_couplings_keeps_saturated_mean_inside_ci():
+    # Near |A| = 1 the interval must still contain the point estimate.
+    g_m = np.full(50, 1e-15)
+    g_a = np.full(50, 1e-11)
+    s = np.full(50, 0.2)
+    r = bootstrap_aalpha_ci(np.zeros(50), s, n_boot=500, seed=0,
+                            g_m=g_m, g_a=g_a, sigma_m=s, sigma_a=s)
+    assert r["ci_low"] <= r["mean_aalpha"] <= r["ci_high"]
+    assert r["ci_high"] < 1.0

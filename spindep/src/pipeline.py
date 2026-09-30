@@ -167,6 +167,9 @@ def run_pipeline(dataset_root, results_root, json_out=None):
         sigma_a    = stats["mean_sigma_a"]
         dof_eff    = stats["dof_effective"]
         pval_w_eff = stats["pval_weighted_eff"]
+        chi2_w_eff = stats["chi2_weighted_eff"]
+        log10p_eff = stats["log10_pval_weighted_eff"]
+        z_eff      = stats["z_weighted_eff"]
         autocorr   = stats["autocorr_length"]
         ci_low     = stats["aalpha_ci_low"]
         ci_high    = stats["aalpha_ci_high"]
@@ -196,6 +199,8 @@ def run_pipeline(dataset_root, results_root, json_out=None):
             "pval":         float(pval_w),
             "dofEffective": int(dof_eff),
             "pvalEffective":float(pval_w_eff),
+            "log10PvalEffective": float(log10p_eff),
+            "zEffective":   float(z_eff),
             "autocorrLength": float(autocorr),
             "aalphaCiLow":  float(ci_low),
             "aalphaCiHigh": float(ci_high),
@@ -252,6 +257,9 @@ def run_pipeline(dataset_root, results_root, json_out=None):
             "p_value_weighted":    pval_w,
             "dof_effective":       dof_eff,
             "p_value_weighted_eff":pval_w_eff,
+            "chi2_weighted_eff":   chi2_w_eff,
+            "log10_p_value_weighted_eff": log10p_eff,
+            "z_weighted_eff":      z_eff,
             "autocorr_length":     round(autocorr, 2),
             "aalpha_ci_low":       round(ci_low, 4),
             "aalpha_ci_high":      round(ci_high, 4),
@@ -264,7 +272,8 @@ def run_pipeline(dataset_root, results_root, json_out=None):
 
         print(f"  chi2_uniform={chi2_u:.1f}  chi2_weighted={chi2_w:.1f}  "
               f"|A|={mean_A:.3f}  sigma_m={sigma_m*100:.1f}%  sigma_a={sigma_a*100:.1f}%")
-        print(f"  dof_effective={dof_eff}  p_weighted_eff={pval_w_eff:.3e}  "
+        print(f"  dof_effective={dof_eff}  chi2_eff={chi2_w_eff:.1f}  "
+              f"log10(p_eff)={log10p_eff:.1f}  Z={z_eff:.1f}  "
               f"(autocorr_length={autocorr:.1f} pts)")
 
     # --------------------------------------------------------

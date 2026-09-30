@@ -267,3 +267,14 @@ def test_load_dataset_on_real_fixture(real_fixtures_dir):
     assert len(df) > 0
     assert (df["lambda_m"] > 0).all()
     assert (df["coupling_abs"] > 0).all()
+
+
+@pytest.mark.parametrize("stem", [
+    "Ohayon_2022_e_muplus", "Stadnik_2023_e_muplus",
+    "V1_Ohayon_2022_e_muplus", "V1_Stadnik_2023_e_muplus",
+    "2Karshenboim_2011_4_m_abs_emu",
+])
+def test_muonium_bounds_are_antimatter_sector(stem):
+    # Muonium (e- mu+) contains an antimuon, like the ddmu+ ion.
+    from src.parser import FILENAME_SECTOR_OVERRIDES
+    assert FILENAME_SECTOR_OVERRIDES[stem] == ("emubar", True)
