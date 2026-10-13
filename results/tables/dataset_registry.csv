@@ -23,7 +23,7 @@ spindep/datasets/normalized/gAgA/lepton-lepton/2Heckel_2013_m_abs_ee.csv,2Heckel
 spindep/datasets/normalized/gAgA/lepton-nucleon/electron-proton_or_antiproton/2Hunter_2013_1_m_abs_ep.csv,2Hunter_2013_1_m_abs_ep,gAgA,lepton-nucleon,V2,Hunter2013,ep,False,Hunter2013 (e-p),macroscopic,g,,False
 spindep/datasets/normalized/gAgA/lepton-lepton/2Hunter_2013_2_m_abs_ee.csv,2Hunter_2013_2_m_abs_ee,gAgA,lepton-lepton,V2,Hunter2013,ee,False,Hunter2013 (e⁻-e⁻),macroscopic,g,,False
 spindep/datasets/normalized/gAgA/lepton-nucleon/electron-neutron/2Hunter_2013_3_m_abs_en.csv,2Hunter_2013_3_m_abs_en,gAgA,lepton-nucleon,V2,Hunter2013,en,False,Hunter2013 (e-n),macroscopic,g,,False
-spindep/datasets/normalized/gAgA/lepton-lepton/2Jiao_2019_m_abs_ee.csv,2Jiao_2019_m_abs_ee,gAgA,lepton-lepton,V2,Jiao2019,ee,False,Jiao2019 (e⁻-e⁻),microscopic,g,,False
+spindep/datasets/normalized/gAgA/lepton-lepton/2Jiao_2020_m_abs_ee.csv,2Jiao_2020_m_abs_ee,gAgA,lepton-lepton,V2,Jiao2020,ee,False,Jiao2020 (e⁻-e⁻),microscopic,g,,False
 spindep/datasets/normalized/gAgA/lepton-nucleon/electron-proton_or_antiproton/2Karshenboim_2011_1_millionev_abs_ep.csv,2Karshenboim_2011_1_millionev_abs_ep,gAgA,lepton-nucleon,V2,Karshenboim2011,ep,False,Karshenboim2011 (e-p),microscopic,g,,False
 spindep/datasets/normalized/gAgA/lepton-nucleon/electron-neutron/2Karshenboim_2011_2_millionev_abs_en.csv,2Karshenboim_2011_2_millionev_abs_en,gAgA,lepton-nucleon,V2,Karshenboim2011,en,False,Karshenboim2011 (e-n),microscopic,g,,False
 spindep/datasets/normalized/gAgA/lepton-lepton/2Karshenboim_2011_3_m_abs_eebar.csv,2Karshenboim_2011_3_m_abs_eebar,gAgA,lepton-lepton,V2,Karshenboim2011,eebar,True,Karshenboim2011 (e⁻-e⁺),microscopic,g,,False
@@ -122,7 +122,7 @@ spindep/datasets/normalized/gVgV/lepton-nucleon/3Ficek_2018_m_abs_epbar.csv,3Fic
 spindep/datasets/normalized/gVgV/nucleon-nucleon/3Kimball_2010_m_abs_np.csv,3Kimball_2010_m_abs_np,gVgV,nucleon-nucleon,V3,Kimball2010,np,False,Kimball2010 (n-p),microscopic,g,,False
 spindep/datasets/normalized/gVgV/nucleon-nucleon/3Ledbetter_2013_m_abs_pN.csv,3Ledbetter_2013_m_abs_pN,gVgV,nucleon-nucleon,V3,Ledbetter2013,pN,False,Ledbetter2013 (p-N),microscopic,g,,False
 spindep/datasets/normalized/gVgV/nucleon-nucleon/3Ramsey_1979_m_abs_np.csv,3Ramsey_1979_m_abs_np,gVgV,nucleon-nucleon,V3,Ramsey1979,np,False,Ramsey1979 (n-p),macroscopic,g,,False
-spindep/datasets/normalized/gVgV/lepton-lepton/3Terrano_2015_m_abs_eN.csv,3Terrano_2015_m_abs_eN,gVgV,lepton-lepton,V3,Terrano2015,eN,False,Terrano2015 (e-N),macroscopic,g,,False
+spindep/datasets/normalized/gVgV/lepton-lepton/3Terrano_2015_m_abs_ee.csv,3Terrano_2015_m_abs_ee,gVgV,lepton-lepton,V3,Terrano2015,ee,False,Terrano2015 (e⁻-e⁻),macroscopic,g,,False
 spindep/datasets/normalized/gVgV/nucleon-nucleon/3Vasilakis_2009_m_abs_nn.csv,3Vasilakis_2009_m_abs_nn,gVgV,nucleon-nucleon,V3,Vasilakis2009,nn,False,Vasilakis2009 (n-n),macroscopic,g,,False
 spindep/datasets/normalized/gVgV/lepton-nucleon/3Wang_2022_m_abs_en.csv,3Wang_2022_m_abs_en,gVgV,lepton-nucleon,V3,Wang2022,en,False,Wang2022 (e-n),macroscopic,g,,False
 spindep/datasets/normalized/gVgV/lepton-nucleon/45Clayburn_2023a_m_abs_eN.csv,45Clayburn_2023a_m_abs_eN,gVgV,lepton-nucleon,V4+5,Clayburn2023a,eN,False,Clayburn2023a (e-N),macroscopic,g,,False
@@ -157,7 +157,7 @@ spindep/datasets/normalized/gpgp/lepton-nucleon/3Ficek_2018_m_abs_epbar.csv,3Fic
 spindep/datasets/normalized/gpgp/nucleon-nucleon/3Kimball_2010_m_abs_np.csv,3Kimball_2010_m_abs_np,gpgp,nucleon-nucleon,V3,Kimball2010,np,False,Kimball2010 (n-p),microscopic,g,,False
 spindep/datasets/normalized/gpgp/nucleon-nucleon/3Ledbetter_2013_m_abs_pN.csv,3Ledbetter_2013_m_abs_pN,gpgp,nucleon-nucleon,V3,Ledbetter2013,pN,False,Ledbetter2013 (p-N),microscopic,g,,False
 spindep/datasets/normalized/gpgp/nucleon-nucleon/3Ramsey_1979_m_abs_np.csv,3Ramsey_1979_m_abs_np,gpgp,nucleon-nucleon,V3,Ramsey1979,np,False,Ramsey1979 (n-p),macroscopic,g,,False
-spindep/datasets/normalized/gpgp/lepton-lepton/3Terrano_2015_m_abs_eN.csv,3Terrano_2015_m_abs_eN,gpgp,lepton-lepton,V3,Terrano2015,eN,False,Terrano2015 (e-N),macroscopic,g,,False
+spindep/datasets/normalized/gpgp/lepton-lepton/3Terrano_2015_m_abs_ee.csv,3Terrano_2015_m_abs_ee,gpgp,lepton-lepton,V3,Terrano2015,ee,False,Terrano2015 (e⁻-e⁻),macroscopic,g,,False
 spindep/datasets/normalized/gpgp/nucleon-nucleon/3Vasilakis_2009_m_abs_nn.csv,3Vasilakis_2009_m_abs_nn,gpgp,nucleon-nucleon,V3,Vasilakis2009,nn,False,Vasilakis2009 (n-n),macroscopic,g,,False
 spindep/datasets/normalized/gpgp/lepton-nucleon/3Wang_2022_m_abs_en.csv,3Wang_2022_m_abs_en,gpgp,lepton-nucleon,V3,Wang2022,en,False,Wang2022 (e-n),macroscopic,g,,False
 spindep/datasets/normalized/gpgs/lepton-nucleon/15Hunter_2014_1_m_abs_ep.csv,15Hunter_2014_1_m_abs_ep,gpgs,lepton-nucleon,V15,Hunter2014,ep,False,Hunter2014 (e-p),macroscopic,g,,False
@@ -207,8 +207,8 @@ spindep/datasets/normalized/gsgs/lepton-nucleon/V1_Delaunay_2017_en.csv,V1_Delau
 spindep/datasets/normalized/gsgs/nucleon-nucleon/V1_Delaunay_2022_NN.csv,V1_Delaunay_2022_NN,gsgs,nucleon-nucleon,V1,Delaunay2022,nN,False,Delaunay2022 (n-N),microscopic,g,,False
 spindep/datasets/normalized/gsgs/nucleon-nucleon/V1_Neutron_scattering.csv,V1_Neutron_scattering,gsgs,nucleon-nucleon,V1,Neutron,nn,False,Neutron (n-n),microscopic,g,,False
 spindep/datasets/normalized/gsgs/lepton-lepton/V1_Ohayon_2022_e_muplus.csv,V1_Ohayon_2022_e_muplus,gsgs,lepton-lepton,V1,Ohayon2022,emubar,True,Ohayon2022 (e-μ̄),microscopic,g,,False
-spindep/datasets/normalized/gsgs/lepton-nucleon/V1_Salumbides_2018_mu_N.csv,V1_Salumbides_2018_mu_N,gsgs,lepton-nucleon,V1,Salumbides2018,muN,False,Salumbides2018 (μ-N),microscopic,g,,False
-spindep/datasets/normalized/gsgs/lepton-nucleon/V1_Salumbides_2018_p_N.csv,V1_Salumbides_2018_p_N,gsgs,lepton-nucleon,V1,Salumbides2018,pN,False,Salumbides2018 (p-N),microscopic,g,,False
+spindep/datasets/normalized/gsgs/lepton-nucleon/V1_Salumbides_2014_antipHe.csv,V1_Salumbides_2014_antipHe,gsgs,lepton-nucleon,V1,Salumbides2014,antipHe,True,Salumbides2014 (p̄-He),microscopic,g,,False
+spindep/datasets/normalized/gsgs/lepton-nucleon/V1_Salumbides_2014_ddmu.csv,V1_Salumbides_2014_ddmu,gsgs,lepton-nucleon,V1,Salumbides2014,ddmu,True,Salumbides2014 (dd-μ),microscopic,g,,False
 spindep/datasets/normalized/gsgs/lepton-lepton/V1_Stadnik_2023_e_muplus.csv,V1_Stadnik_2023_e_muplus,gsgs,lepton-lepton,V1,Stadnik2023,emubar,True,Stadnik2023 (e-μ̄),macroscopic,g,,False
 spindep/datasets/normalized/gsgs/lepton-lepton/V1_Supernova_mu_mu.csv,V1_Supernova_mu_mu,gsgs,lepton-lepton,V1,Supernova,mumu,False,Supernova (μ-μ),mixed,g,,False
 spindep/datasets/normalized/gsgs/nucleon-nucleon/V1_Torsion_NN.csv,V1_Torsion_NN,gsgs,nucleon-nucleon,V1,Torsion,nN,False,Torsion (n-N),macroscopic,g,,False

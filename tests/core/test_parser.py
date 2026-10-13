@@ -91,7 +91,7 @@ def test_extract_sector_unknown_when_no_candidates():
 
 def test_extract_sector_joins_split_two_letter_tokens():
     # "p" + "N" (in that filename order) should join to a known sector "pN"
-    parts = ["V1", "Salumbides", "2018", "p", "N"]
+    parts = ["V1", "Salumbides", "2014", "p", "N"]
     assert extract_sector(parts) == "pN"
 
 
@@ -278,3 +278,50 @@ def test_muonium_bounds_are_antimatter_sector(stem):
     # Muonium is e- mu+, so it belongs on the antimatter side, like ddmu+.
     from src.parser import FILENAME_SECTOR_OVERRIDES
     assert FILENAME_SECTOR_OVERRIDES[stem] == ("emubar", True)
+
+
+@pytest.mark.parametrize("stem,sector", [
+    ("Salumbides_2014_p_N", "antipHe"), ("V1_Salumbides_2014_antipHe", "antipHe"),
+    ("Salumbides_2014_mu_N", "ddmu"),   ("V1_Salumbides_2014_ddmu", "ddmu"),
+])
+def test_salumbides_gsgs_bounds_are_antimatter(stem, sector):
+    # The g_s g_s copies of the antiprotonic-helium and ddmu+ bounds carry the
+    # same labels as their |alpha| originals, not matter pN / muN.
+    assert FILENAME_SECTOR_OVERRIDES[stem] == (sector, True)
+
+
+# ── extrapolation rows ──────────────────────────────────────────────────
+
+def _curve(tmp_path, rows):
+    fp = tmp_path / "curve.csv"
+    fp.write_text("".join(f"{lam},{g}\n" for lam, g in rows))
+    return fp
+
+
+MEASURED = [(1e-9 * 10 ** (0.2 * i), 1e-20 * 10 ** (-0.4 * i)) for i in range(8)]
+
+
+def test_flat_extrapolation_row_is_cut(tmp_path):
+    lam_end, g_end = MEASURED[-1]
+    df = load_dataset(_curve(tmp_path, MEASURED + [(1e50, g_end)]))
+    assert len(df) == len(MEASURED)
+    assert df["lambda_m"].max() == pytest.approx(lam_end)
+
+
+def test_slope_continuation_row_is_cut(tmp_path):
+    # Last segment has slope -2 in log-log; the extra row continues it.
+    lam_end, g_end = MEASURED[-1]
+    df = load_dataset(_curve(tmp_path, MEASURED + [(lam_end * 1e40, g_end * 1e-80)]))
+    assert len(df) == len(MEASURED)
+
+
+def test_distant_end_row_off_trend_is_kept(tmp_path):
+    # A long jump that neither holds |g| nor follows the slope is not an
+    # extrapolation by this rule, so it survives.
+    df = load_dataset(_curve(tmp_path, MEASURED + [(1e10, 1e-5)]))
+    assert len(df) == len(MEASURED) + 1
+
+
+def test_ordinary_curve_untouched(tmp_path):
+    df = load_dataset(_curve(tmp_path, MEASURED))
+    assert len(df) == len(MEASURED)

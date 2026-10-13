@@ -178,8 +178,10 @@ def effective_dof(residuals: np.ndarray, lam_grid: np.ndarray) -> dict:
     # Mean-centre residuals
     r_c = r - r.mean()
 
-    # Normalised autocorrelation at lags 0..min(n//2, 50)
-    max_lag   = min(n // 2, 50)
+    # Normalised autocorrelation at lags 0..n//2. A fixed cap of 50 used to
+    # sit here; eight of the fifteen pairs reached it, so their tau -- and
+    # therefore dof_eff = n/tau -- was set by the cap, not by the residuals.
+    max_lag   = n // 2
     acf       = np.array([
         float(np.dot(r_c[:n-k], r_c[k:]) / (np.dot(r_c, r_c) + 1e-30))
         for k in range(max_lag + 1)

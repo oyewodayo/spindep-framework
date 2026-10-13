@@ -281,8 +281,14 @@ FILENAME_SECTOR_OVERRIDES = {
     "Delaunay_2022_NN":          ("nN",   False),
     "Torsion_NN":                ("nN",   False),
     "WEP_NN":                    ("nN",   False),
-    "Salumbides_2018_mu_N":      ("muN",  False),
-    "Salumbides_2018_p_N":       ("pN",   False),
+    # Salumbides, Ubachs & Korobov (2014), J. Mol. Spectrosc. 300, 65 -- the
+    # same antiprotonic-helium and ddmu+ bounds as Salumbides_antipHe_2014 and
+    # Salumbides_ddmu_2014 above, converted by the source compilation from
+    # |alpha| to g_s g_s (identical lambda grid, values = |alpha| x 7.70e-38,
+    # Cong et al. 2025 Eq. B2). Upstream names them "_p_N" and "_mu_N", but
+    # both systems contain antimatter, so they take the alpha files' labels.
+    "Salumbides_2014_p_N":       ("antipHe", True),
+    "Salumbides_2014_mu_N":      ("ddmu",    True),
 
     # ── gsgs specific, V1-prefixed (post spindep-convention rename) ──
     # Same stems as above with a V1_ prefix added to comply with the
@@ -301,8 +307,8 @@ FILENAME_SECTOR_OVERRIDES = {
     "V1_Delaunay_2022_NN":       ("nN",     False),
     "V1_Torsion_NN":             ("nN",     False),
     "V1_WEP_NN":                 ("nN",     False),
-    "V1_Salumbides_2018_mu_N":  ("muN",    False),
-    "V1_Salumbides_2018_p_N":   ("pN",     False),
+    "V1_Salumbides_2014_ddmu":   ("ddmu",    True),
+    "V1_Salumbides_2014_antipHe":("antipHe", True),
     "V1_eeastro_m_abs":          ("eastro", False),
     "V1_eNastro_m_abs":          ("eNastro",False),
     "V1_Neutron_scattering":     ("nn",     False),
@@ -847,7 +853,53 @@ def _strip_boundary_sentinel(df):
     return df
 
 
-def load_dataset(filepath):
+# An extrapolation row is one the source compilation appends past the last
+# measured point to carry a curve across the plot: either held flat (Heckel
+# 2008, Zhang 2023 to lambda = 1e50 m) or continued along the final slope
+# (the gAgA Ficek 2017/2018 V3 curves, slope -2 to 1e37 and 1e52 m). Both are
+# byte-identical upstream. They are not measurements, so they are cut and
+# every comparison is confined to the measured range. Detected by shape, like
+# the sentinel above: a long jump that either keeps |g| fixed or keeps the
+# slope of the last real segment. Anything else at the end is left alone.
+EXTRAPOLATION_GAP_DECADES = 3.0   # jump to the end row, in log10(lambda)
+EXTRAPOLATION_TOLERANCE = 0.01    # |g| or slope match, in log10 units
+EXTRAPOLATION_MIN_POINTS = 5      # sparse curves have no "typical" spacing
+
+
+def _extrapolation_ends(df):
+    """Indices of a leading and/or trailing extrapolation row, if any."""
+    if len(df) < EXTRAPOLATION_MIN_POINTS:
+        return []
+    lam = np.log10(df["lambda_m"].values)
+    g = np.log10(df["coupling_abs"].values)
+    found = []
+    # (end row, its neighbour, the neighbour's other neighbour)
+    for end, near, far in ((len(df) - 1, -2, -3), (0, 1, 2)):
+        near, far = near % len(df), far % len(df)
+        jump = abs(lam[end] - lam[near])
+        if jump < EXTRAPOLATION_GAP_DECADES or lam[near] == lam[far]:
+            continue
+        flat = abs(g[end] - g[near]) < EXTRAPOLATION_TOLERANCE
+        last_slope = (g[near] - g[far]) / (lam[near] - lam[far])
+        end_slope = (g[end] - g[near]) / (lam[end] - lam[near])
+        if flat or abs(end_slope - last_slope) < EXTRAPOLATION_TOLERANCE:
+            found.append(end)
+    return found
+
+
+def _strip_extrapolation_rows(df):
+    ends = _extrapolation_ends(df)
+    return df.drop(index=ends).reset_index(drop=True) if ends else df
+
+
+def find_extrapolated_datasets(filepaths):
+    """Names of the files whose curves carry an extrapolation row, for the
+    pipeline to report once rather than on every load."""
+    return [Path(p).stem for p in filepaths
+            if _extrapolation_ends(_load_raw(p))]
+
+
+def _load_raw(filepath):
     df = pd.read_csv(
         filepath,
         header=None,
@@ -861,3 +913,7 @@ def load_dataset(filepath):
     df = df[(df["lambda_m"] > 0) & (df["coupling_abs"] > 0)]
     df = df.sort_values("lambda_m").reset_index(drop=True)
     return _strip_boundary_sentinel(df)
+
+
+def load_dataset(filepath):
+    return _strip_extrapolation_rows(_load_raw(filepath))

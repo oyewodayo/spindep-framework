@@ -30,8 +30,8 @@ MIGRATION_MAP = {
     # lepton-nucleon (e-n, e-p, mu-N)
     "Delaunay_2017_en":         "lepton-nucleon",  # electron-neutron
     "Alighanbari_2020":         "lepton-nucleon",  # HD+ spectroscopy (e-p)
-    "Salumbides_2018_mu_N":     "lepton-nucleon",  # muon-nucleus
-    "Salumbides_2018_p_N":      "lepton-nucleon",  # proton-nucleus
+    "Salumbides_2014_mu_N":     "lepton-nucleon",  # ddmu+ (mu+ -N), antimatter
+    "Salumbides_2014_p_N":      "lepton-nucleon",  # antiprotonic He (pbar-N), antimatter
 
     # nucleon-nucleon (n-n, N-N)
     "Casimir_NN":               "nucleon-nucleon",

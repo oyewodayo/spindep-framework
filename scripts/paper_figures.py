@@ -53,7 +53,7 @@ PAIRS = [
      r"(a) $g_Ag_A$, $V_2$: $e$–$p$ vs $e$–$\bar p$",
      r"$e$–$p$, hydrogen (Karshenboim)", r"$e$–$\bar p$, $\bar p$He (Ficek et al.)",
      "center right", None),
-    ("gAgA", "2Jiao_2019_m_abs_ee", "2Karshenboim_2011_3_m_abs_eebar",
+    ("gAgA", "2Jiao_2020_m_abs_ee", "2Karshenboim_2011_3_m_abs_eebar",
      r"(b) $g_Ag_A$, $V_2$: $e$–$e$ vs $e$–$e^+$",
      r"$e$–$e$ (Jiao et al.)", r"$e$–$e^+$, positronium (Karshenboim)",
      "upper right", [4e-9, 1e-8, 2e-8]),
@@ -121,6 +121,9 @@ def plot_coverage_matrix(registry):
               .unstack(fill_value=0)
               .reindex(index=SECTOR_ORDER, columns=POTENTIAL_ORDER, fill_value=0))
     assert counts.values.sum() == len(kept), "matrix must account for every analysed record"
+    # A sector with no analysed record (mu-N, once the ddmu+ bound was
+    # recognised as antimatter) would only add a blank row.
+    counts = counts[counts.sum(axis=1) > 0]
 
     cmap = LinearSegmentedColormap.from_list("cov", ["#f4f6f9", "#1f4e79"])
     fig, ax = plt.subplots(figsize=(7.0, 5.4))
@@ -133,10 +136,10 @@ def plot_coverage_matrix(registry):
                         color="white" if v > counts.values.max() / 2 else "#1a1a1a")
     ax.set_xticks(range(len(POTENTIAL_ORDER)))
     ax.set_xticklabels([pot_label(p) for p in POTENTIAL_ORDER])
-    ax.set_yticks(range(len(SECTOR_ORDER)))
-    ax.set_yticklabels([SECTOR_LABEL[s] for s in SECTOR_ORDER])
+    ax.set_yticks(range(len(counts.index)))
+    ax.set_yticklabels([SECTOR_LABEL[s] for s in counts.index])
     anti = set(kept.loc[kept.contains_antimatter, "sector"])
-    for tick, s in zip(ax.get_yticklabels(), SECTOR_ORDER):
+    for tick, s in zip(ax.get_yticklabels(), counts.index):
         if s in anti:
             tick.set_color("#a4262c")
     ax.set_xlabel("potential label")

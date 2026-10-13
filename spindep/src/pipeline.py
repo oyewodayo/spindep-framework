@@ -6,7 +6,7 @@ import json
 import pandas as pd
 import numpy as np
 
-from .parser import discover_datasets, load_dataset
+from .parser import discover_datasets, load_dataset, find_extrapolated_datasets
 from .matcher import build_pairs
 from .statistics import (
     chi_squared_sensitivity,
@@ -73,6 +73,13 @@ def run_pipeline(dataset_root, results_root, json_out=None):
     print("UNIT AUDIT")
     print("=" * 60)
     audit_units(datasets, verbose=True)
+
+    # Extrapolation rows are cut on every load (parser.load_dataset); this
+    # only says which files had one, so the cut is visible in the log.
+    extrapolated = sorted(set(find_extrapolated_datasets(d.filepath for d in datasets)))
+    print(f"\nExtrapolation rows past the measured range, cut on load: {len(extrapolated)} file(s)")
+    for name in extrapolated:
+        print(f"    {name}")
 
     # --------------------------------------------------------
     # SCALE REGIME (microscopic / macroscopic / mixed)

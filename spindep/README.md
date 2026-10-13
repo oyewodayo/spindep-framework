@@ -165,7 +165,7 @@ Examples:
 2Kotler_2015_m_abs_ee.csv
 3Fadeev_2022_2_m_abs_ebare.csv
 45Ficek_2017_V4+5_m_abs_ee.csv
-3Terrano_2015_m_abs_eN.csv
+3Terrano_2015_m_abs_ee.csv
 ```
 
 ### Potential Extraction Rules
@@ -174,7 +174,7 @@ Examples:
 |---|---|---|
 | Explicit V-token | V-token value | `2Ficek_2017_V2_m_abs_ee.csv -> V2` |
 | Standalone digit after year | `V{digit}` | `3Fadeev_2022_3_m_abs_emu.csv -> V3` |
-| Leading digit on author | `V{digit}` | `3Terrano_2015_m_abs_eN.csv -> V3` |
+| Leading digit on author | `V{digit}` | `3Terrano_2015_m_abs_ee.csv -> V3` |
 
 ---
 

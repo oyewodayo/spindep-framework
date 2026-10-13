@@ -45,3 +45,24 @@ from a g_S·g_S coupling, so the mapping is definitional, not per-dataset.
 replaced, since some stems — e.g. `eNastro_m_abs`, `Alighanbari_2020` — are
 shared with files in other coupling folders/staging areas that were not
 renamed).
+
+# Naming fix: Salumbides year and system (2026-10-01)
+
+| Old name | New name |
+|---|---|
+| `V1_Salumbides_2018_p_N.csv` | `V1_Salumbides_2014_antipHe.csv` |
+| `V1_Salumbides_2018_mu_N.csv` | `V1_Salumbides_2014_ddmu.csv` |
+
+No CSV contents were modified.
+
+Both curves are from Salumbides, Ubachs & Korobov (2014), J. Mol. Spectrosc.
+300, 65 (arXiv:1308.1711); the review of Cong et al. (2025) cites no 2018
+Salumbides paper, and the source compilation names the files
+`Salumbides_2014_p_N.csv` and `Salumbides_2014_mu_N.csv`. Cong et al. (p. 82)
+attribute them to antiprotonic helium ("for p-bar-N") and the ddmu+ ion ("for
+mu+-N"). Each is the matching `V1/V1_alpha_data/` curve converted from |alpha|
+to g_s g_s: the lambda grid is identical and the values are |alpha| x 7.70e-38
+throughout (their Eq. B2). Both systems contain antimatter, so the files now
+carry the same `antipHe` / `ddmu` labels as their alpha counterparts, and
+`parser.py` flags them as antimatter; they were previously read as matter
+`pN` and `muN`.
