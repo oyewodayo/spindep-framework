@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "SPINDEP: Spin-Dependent Exotic Interaction Analysis Framework"
+abstract: >-
+  A Python framework for comparing matter and antimatter coupling-constant
+  bounds on spin-dependent exotic interactions, classified by the
+  Dobrescu–Mocioiu potentials (V1–V16), and testing their consistency with
+  CPT symmetry via an asymmetry parameter and chi-squared significance tests.
+authors:
+  - family-names: Oyewo
+    given-names: Temidayo Solomon
+    affiliation: University of Ibadan
+    orcid: "https://orcid.org/0009-0008-0864-0922"
+version: 1.0.0
+date-released: 2026-10-13
+license: MIT
+repository-code: "https://github.com/oyewodayo/spindep-framework"
+keywords:
+  - exotic interactions
+  - spin-dependent interactions
+  - CPT symmetry
+  - antimatter
+  - Standard Model Extension
+  - Dobrescu-Mocioiu potentials
+  - coupling constants

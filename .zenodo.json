@@ -1,0 +1,30 @@
+{
+  "title": "SPINDEP: Spin-Dependent Exotic Interaction Analysis Framework",
+  "upload_type": "software",
+  "description": "<p>A Python framework for comparing matter and antimatter coupling-constant bounds on spin-dependent exotic interactions, classified by the Dobrescu–Mocioiu potentials (V1–V16), and testing their consistency with CPT symmetry. It discovers and matches matter/antimatter constraint datasets across lepton-lepton, lepton-nucleon and nucleon-nucleon sectors, interpolates them onto a common interaction-range grid, computes the asymmetry parameter A = (g_matter − g_antimatter)/(g_matter + g_antimatter), and runs chi-squared significance tests. Developed for an M.Sc. thesis in Physics at the University of Ibadan.</p>",
+  "creators": [
+    {
+      "name": "Oyewo, Temidayo Solomon",
+      "affiliation": "University of Ibadan",
+      "orcid": "0009-0008-0864-0922"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Oyewande, E. O.",
+      "affiliation": "Department of Physics, University of Ibadan",
+      "type": "Supervisor"
+    }
+  ],
+  "license": "MIT",
+  "version": "1.0.0",
+  "keywords": [
+    "exotic interactions",
+    "spin-dependent interactions",
+    "CPT symmetry",
+    "antimatter",
+    "Standard Model Extension",
+    "Dobrescu-Mocioiu potentials",
+    "coupling constants"
+  ]
+}
