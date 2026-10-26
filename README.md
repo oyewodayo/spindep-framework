@@ -6,6 +6,17 @@
 
 A Python pipeline I built for my M.Sc. project to compare matter and antimatter coupling-constant bounds for spin-dependent exotic interactions and to quantify how their sensitivities differ. For one-sided exclusion limits, the resulting asymmetry measures relative sensitivity, not CPT violation.
 
+A Python framework for comparing matter and antimatter coupling-constant
+  bounds on spin-dependent exotic interactions, classified by the
+  Dobrescu–Mocioiu potentials (V1–V16). It discovers and matches
+  matter/antimatter constraint datasets across lepton-lepton, lepton-nucleon
+  and nucleon-nucleon sectors, interpolates them onto a common
+  interaction-range grid, and computes an asymmetry parameter and a
+  sensitivity ratio together with chi-squared diagnostics. For one-sided
+  exclusion limits these quantities measure relative experimental
+  sensitivity, not CPT violation. Developed for an M.Sc. thesis in Physics
+  at the University of Ibadan.
+
 ## What it does
 
 Given a folder of matter and antimatter constraint datasets, SPINDEP:
