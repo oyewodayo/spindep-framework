@@ -26,8 +26,8 @@ spindep/datasets/normalized/gAgA/lepton-nucleon/electron-neutron/2Hunter_2013_3_
 spindep/datasets/normalized/gAgA/lepton-lepton/2Jiao_2020_m_abs_ee.csv,2Jiao_2020_m_abs_ee,gAgA,lepton-lepton,V2,Jiao2020,ee,False,Jiao2020 (e⁻-e⁻),microscopic,g,,False
 spindep/datasets/normalized/gAgA/lepton-nucleon/electron-proton_or_antiproton/2Karshenboim_2011_1_millionev_abs_ep.csv,2Karshenboim_2011_1_millionev_abs_ep,gAgA,lepton-nucleon,V2,Karshenboim2011,ep,False,Karshenboim2011 (e-p),microscopic,g,,False
 spindep/datasets/normalized/gAgA/lepton-nucleon/electron-neutron/2Karshenboim_2011_2_millionev_abs_en.csv,2Karshenboim_2011_2_millionev_abs_en,gAgA,lepton-nucleon,V2,Karshenboim2011,en,False,Karshenboim2011 (e-n),microscopic,g,,False
-spindep/datasets/normalized/gAgA/lepton-lepton/2Karshenboim_2011_3_m_abs_eebar.csv,2Karshenboim_2011_3_m_abs_eebar,gAgA,lepton-lepton,V2,Karshenboim2011,eebar,True,Karshenboim2011 (e⁻-e⁺),microscopic,g,,False
-spindep/datasets/normalized/gAgA/lepton-lepton/2Karshenboim_2011_4_m_abs_emu.csv,2Karshenboim_2011_4_m_abs_emu,gAgA,lepton-lepton,V2,Karshenboim2011,emubar,True,Karshenboim2011 (e-μ̄),microscopic,g,,False
+spindep/datasets/normalized/gAgA/lepton-lepton/2Karshenboim_2011_3_m_abs_eebar.csv,2Karshenboim_2011_3_m_abs_eebar,gAgA,lepton-lepton,V2,Karshenboim2010,eebar,True,Karshenboim2010 (e⁻-e⁺),microscopic,g,,False
+spindep/datasets/normalized/gAgA/lepton-lepton/2Karshenboim_2011_4_m_abs_emu.csv,2Karshenboim_2011_4_m_abs_emu,gAgA,lepton-lepton,V2,Karshenboim2010,emubar,True,Karshenboim2010 (e-μ̄),microscopic,g,,False
 spindep/datasets/normalized/gAgA/nucleon-nucleon/2Kimball_2010_m_abs_np.csv,2Kimball_2010_m_abs_np,gAgA,nucleon-nucleon,V2,Kimball2010,np,False,Kimball2010 (n-p),microscopic,g,,False
 spindep/datasets/normalized/gAgA/lepton-lepton/2Kotler_2015_m_abs_ee.csv,2Kotler_2015_m_abs_ee,gAgA,lepton-lepton,V2,Kotler2015,ee,False,Kotler2015 (e⁻-e⁻),macroscopic,g,,False
 spindep/datasets/normalized/gAgA/nucleon-nucleon/2Ledbetter_2013_m_abs_pN.csv,2Ledbetter_2013_m_abs_pN,gAgA,nucleon-nucleon,V2,Ledbetter2013,pN,False,Ledbetter2013 (p-N),microscopic,g,,False

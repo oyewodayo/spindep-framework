@@ -659,6 +659,24 @@ FILENAME_POTENTIAL_OVERRIDES = {
 
 
 # ============================================================
+# FILENAME → source OVERRIDES
+# For files whose filename names the wrong publication. The data
+# files keep their original names; only the source label changes.
+# ============================================================
+
+FILENAME_SOURCE_OVERRIDES = {
+    # Positronium and muonium 1s hfs bounds on g_A g_A come from
+    # Karshenboim (2010), Phys. Rev. D 82, 113013, "Constraints on a
+    # long-range spin-dependent interaction from precision atomic
+    # physics" (as credited in Cong et al., Rev. Mod. Phys. 97, 025005).
+    # Karshenboim (2011), Phys. Rev. A 83, 062119, covers H, D and
+    # 3He+ only.
+    "2Karshenboim_2011_3_m_abs_eebar":  "Karshenboim2010",
+    "2Karshenboim_2011_4_m_abs_emu":    "Karshenboim2010",
+}
+
+
+# ============================================================
 # DIRECTORY / FILENAME SECTOR CROSS-CHECK
 # ============================================================
 
@@ -776,7 +794,9 @@ def parse_dataset(filepath):
             sector = reconciled
             contains_antimatter = sector in ANTIMATTER_SECTORS
 
-        source = f"{author}{year}" if year != "UNKNOWN" else author
+        source = FILENAME_SOURCE_OVERRIDES.get(
+            name_clean, f"{author}{year}" if year != "UNKNOWN" else author
+        )
         label  = build_label(source, sector)
 
         return ConstraintDataset(

@@ -133,7 +133,7 @@ def plot_ratios(curves, out_base):
 
     # Author names only in the legend; the years in the source tags follow
     # the preprint, which does not always match the journal reference.
-    author = {"Cong2025": "Cong", "Karshenboim2011": "Karshenboim", "Ficek2017": "Ficek",
+    author = {"Cong2025": "Cong", "Karshenboim2010": "Karshenboim", "Karshenboim2011": "Karshenboim", "Ficek2017": "Ficek",
               "Ficek2018": "Ficek", "Fadeev2022": "Fadeev", "Jiao2020": "Jiao",
               "Delaunay2017": "Delaunay", "Adkins2022": "Adkins"}
     pretty = {"gAgA": r"$g_Ag_A$", "gVgV": r"$g_Vg_V$", "gpgp": r"$g_Pg_P$", "gsgs": r"$g_Sg_S$"}
