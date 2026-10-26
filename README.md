@@ -4,7 +4,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23352440.svg)](https://doi.org/10.5281/zenodo.23352440)
 
-A Python pipeline I built for my M.Sc. project to compare matter and antimatter coupling-constant bounds for spin-dependent exotic interactions, and check whether the two sides are consistent with CPT symmetry.
+A Python pipeline I built for my M.Sc. project to compare matter and antimatter coupling-constant bounds for spin-dependent exotic interactions and to quantify how their sensitivities differ. For one-sided exclusion limits, the resulting asymmetry measures relative sensitivity, not CPT violation.
 
 ## What it does
 
