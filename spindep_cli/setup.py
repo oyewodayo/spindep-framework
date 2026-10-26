@@ -28,7 +28,7 @@ long_desc = Path("README.md").read_text(encoding="utf-8") if Path("README.md").e
 
 setup(
     name="spindep_cli",
-    version="1.0.0",
+    version="1.0.1",
     description=(
         "SPINDEP: Spin-Dependent Exotic Interaction Constraint "
         "Analysis Pipeline for CPT symmetry tests"

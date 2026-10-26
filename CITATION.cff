@@ -18,16 +18,16 @@ authors:
     given-names: Temidayo Solomon
     affiliation: University of Ibadan
     orcid: "https://orcid.org/0009-0008-0864-0922"
-doi: 10.5281/zenodo.23352441
+doi: 10.5281/zenodo.23352440
 identifiers:
   - type: doi
     value: 10.5281/zenodo.23352440
     description: "Concept DOI (all versions, resolves to the latest)"
   - type: doi
     value: 10.5281/zenodo.23352441
-    description: "Version 1.0.0"
-version: 1.0.0
-date-released: 2026-10-13
+    description: "Version 1.0.0 (superseded by 1.0.1)"
+version: 1.0.1
+date-released: 2026-10-26
 license: MIT
 repository-code: "https://github.com/oyewodayo/spindep-framework"
 keywords:
